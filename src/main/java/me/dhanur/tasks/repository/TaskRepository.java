@@ -15,8 +15,4 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
      */
     Page<Task> findByStatus(TaskStatus status, Pageable pageable);
 
-    /**
-     * Find tasks by title containing (case-insensitive)
-     */
-    Page<Task> findByTitleContainingIgnoreCase(String title, Pageable pageable);
 }

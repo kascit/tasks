@@ -244,6 +244,7 @@ src/
 │   │   ├── config/
 │   │   │   └── OpenApiConfig.java      # Swagger/OpenAPI configuration
 │   │   ├── controller/
+│   │   │   ├── RootController.java     # Root redirect to Swagger UI
 │   │   │   └── TaskController.java     # REST API endpoints
 │   │   ├── dto/
 │   │   │   ├── TaskRequest.java        # Request DTO
@@ -261,6 +262,9 @@ src/
 │   │       ├── TaskService.java        # Service interface
 │   │       └── TaskServiceImpl.java    # Service implementation
 │   └── resources/
+│       ├── static/                     # Frontend (HTML/JS)
+│       │   └── app/
+│       │       └── index.html          # Task Manager UI
 │       ├── application.yaml            # Main configuration
 │       ├── application-dev.yaml        # Dev profile config
 │       └── application-prod.yaml       # Prod profile config

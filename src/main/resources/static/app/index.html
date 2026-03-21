@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tasks — dhanur.me</title>
+  <!-- Required for FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+
+  <style>
+    /* Kanban layout */
+    .kanban-col { min-height: 55vh; }
+    .kanban-col .col-body { background: oklch(var(--bc) / 0.03); border-radius: 1rem; padding: 0.5rem; min-height: 200px; }
+
+    /* Cards */
+    .task-card {
+      cursor: grab;
+      transition: transform 0.15s, box-shadow 0.15s, opacity 0.15s;
+    }
+    .task-card:active { cursor: grabbing; }
+    .task-card.dragging { opacity: 0.35; transform: scale(0.96) rotate(-1deg); }
+    .task-card:hover { transform: translateY(-2px); box-shadow: 0 6px 20px oklch(0 0 0 / 0.12); }
+    
+    .task-card .actions { opacity: 0; transition: opacity 0.15s; }
+    .task-card:hover .actions { opacity: 1; }
+    @media (max-width: 768px) { .task-card .actions { opacity: 1; } }
+
+    /* Card left border per status indicating progress monochromatic */
+    [data-status="TODO"] .task-card { border-left: 3px solid oklch(var(--bc) / 0.15); }
+    [data-status="IN_PROGRESS"] .task-card { border-left: 3px solid oklch(var(--bc) / 0.45); }
+    [data-status="DONE"] .task-card { border-left: 3px solid oklch(var(--bc) / 0.85); }
+
+    /* Drop highlighting */
+    .kanban-col.drag-over .col-body {
+      background: oklch(var(--bc) / 0.07);
+      outline: 2px dashed oklch(var(--bc) / 0.35);
+      outline-offset: -2px;
+    }
+
+    /* Column header bar monochromatic */
+    .col-header-bar {
+      height: 3px;
+      border-radius: 3px 3px 0 0;
+      margin-bottom: -1px;
+    }
+  </style>
+
+  <!-- 1. The Configuration Object (must be synchronously before shell.js) -->
+  <script>
+  window.SiteNavConfig = {
+      mode: "full", // "full" (navbar + drawer sidebar) or "navbar" (top bar only)
+      nav: [
+          { name: "Home", url: "https://dhanur.me/", icon: "fa-solid fa-house" }
+      ],
+      sidebarNav: [
+          { name: "Board", url: "/app/", icon: "fa-solid fa-clipboard-list" },
+          { name: "API", url: "https://tasks.dhanur.me/swagger-ui/index.html", icon: "fa-solid fa-code" }
+      ],
+      activePath: window.location.pathname, 
+      badge: { text: "SERVICE", class: "badge-neutral" },
+      showSearch: false, 
+      showAppsGrid: true, 
+      showThemeToggle: true
+  };
+  </script>
+
+  <!-- 2. The Abyssal Integration Script -->
+  <script src="https://dhanur.me/js/shell.js" defer></script>
+</head>
+<body>
+
+  <!-- The shell.js will automatically wrap this main element within a .drawer context -->
+  <main class="w-full max-w-7xl mx-auto p-4 lg:p-8">
+      
+    <!-- Header -->
+    <h1 class="text-4xl lg:text-5xl font-extrabold tracking-tight mb-6 mt-14">Task Board</h1>
+    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
+        <p class="text-lg text-base-content/85">Drag cards between columns to change status.</p>
+        <div class="flex gap-2 shrink-0">
+            <a href="https://tasks.dhanur.me/swagger-ui/index.html" class="btn btn-ghost btn-sm gap-1.5 text-xs">
+              <i class="fa-solid fa-code text-base-content/60"></i> API
+            </a>
+            <button onclick="openCreateModal()" class="btn border border-base-content/20 hover:border-base-content/40 hover:bg-base-content/5 bg-transparent text-base-content btn-sm gap-1.5 text-xs shadow-sm">
+              <i class="fa-solid fa-plus text-base-content/60"></i> New Task
+            </button>
+        </div>
+    </div>
+
+    <!-- Stats strip -->
+    <div class="flex flex-wrap items-center gap-4 sm:gap-6 mb-8 px-1">
+      <div class="flex items-baseline gap-2">
+        <span class="text-xl font-bold text-base-content" id="stat-total">0</span>
+        <span class="text-xs text-base-content/40 uppercase tracking-widest font-semibold">total</span>
+      </div>
+      <div class="w-px h-5 bg-base-content/10 hidden sm:block"></div>
+      <div class="flex items-center gap-2">
+        <div class="w-2 h-2 rounded-full bg-base-content/20"></div>
+        <span class="text-sm font-semibold text-base-content" id="stat-todo">0</span>
+        <span class="text-xs text-base-content/50 uppercase tracking-widest font-semibold hidden sm:inline">to do</span>
+      </div>
+      <div class="flex items-center gap-2">
+        <div class="w-2 h-2 rounded-full bg-base-content/50"></div>
+        <span class="text-sm font-semibold text-base-content" id="stat-progress">0</span>
+        <span class="text-xs text-base-content/50 uppercase tracking-widest font-semibold hidden sm:inline">in progress</span>
+      </div>
+      <div class="flex items-center gap-2">
+        <div class="w-2 h-2 rounded-full bg-base-content"></div>
+        <span class="text-sm font-semibold text-base-content" id="stat-done">0</span>
+        <span class="text-xs text-base-content/50 uppercase tracking-widest font-semibold hidden sm:inline">done</span>
+      </div>
+    </div>
+
+    <!-- Loading -->
+    <div id="loading-state" class="text-center py-24">
+      <span class="loading loading-spinner loading-lg opacity-30"></span>
+    </div>
+
+    <!-- Kanban Board -->
+    <div id="kanban-board" class="grid grid-cols-1 md:grid-cols-3 gap-5 hidden">
+
+      <!-- TODO Column -->
+      <div class="kanban-col" data-status="TODO"
+           ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event)">
+        <div class="flex items-center justify-between mb-2 px-1">
+          <div class="flex items-center gap-2">
+            <div class="w-2.5 h-2.5 rounded-full bg-base-content/20"></div>
+            <span class="font-semibold text-xs uppercase tracking-wider text-base-content/60">To Do</span>
+          </div>
+          <span class="text-xs font-mono text-base-content/40" id="count-todo">0</span>
+        </div>
+        <div class="col-header-bar bg-base-content/10"></div>
+        <div class="col-body flex flex-col gap-2" id="col-TODO"></div>
+      </div>
+
+      <!-- IN_PROGRESS Column -->
+      <div class="kanban-col" data-status="IN_PROGRESS"
+           ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event)">
+        <div class="flex items-center justify-between mb-2 px-1">
+          <div class="flex items-center gap-2">
+            <div class="w-2.5 h-2.5 rounded-full bg-base-content/50"></div>
+            <span class="font-semibold text-xs uppercase tracking-wider text-base-content/60">In Progress</span>
+          </div>
+          <span class="text-xs font-mono text-base-content/40" id="count-progress">0</span>
+        </div>
+        <div class="col-header-bar bg-base-content/30"></div>
+        <div class="col-body flex flex-col gap-2" id="col-IN_PROGRESS"></div>
+      </div>
+
+      <!-- DONE Column -->
+      <div class="kanban-col" data-status="DONE"
+           ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event)">
+        <div class="flex items-center justify-between mb-2 px-1">
+          <div class="flex items-center gap-2">
+            <div class="w-2.5 h-2.5 rounded-full bg-base-content"></div>
+            <span class="font-semibold text-xs uppercase tracking-wider text-base-content/60">Done</span>
+          </div>
+          <span class="text-xs font-mono text-base-content/40" id="count-done">0</span>
+        </div>
+        <div class="col-header-bar bg-base-content/60"></div>
+        <div class="col-body flex flex-col gap-2" id="col-DONE"></div>
+      </div>
+    </div>
+
+    <!-- Empty State -->
+    <div id="empty-state" class="hidden text-center py-32 flex flex-col items-center justify-center">
+      <div class="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-base-200 shadow-sm border border-base-content/10 mb-6">
+        <i class="fa-solid fa-clipboard-list text-3xl text-base-content/30 mt-1"></i>
+      </div>
+      <p class="text-lg font-semibold text-base-content/70 mb-2">No tasks yet</p>
+      <p class="text-sm text-base-content/40 mb-8 max-w-sm mx-auto">Create your first task to populate your board and start tracking progress.</p>
+      <button onclick="openCreateModal()" class="btn bg-base-content hover:bg-base-content/90 text-base-100 border-0 btn-sm gap-2 shadow-md">
+        <i class="fa-solid fa-plus"></i> Create Task
+      </button>
+    </div>
+  </main>
+
+  <!-- Create/Edit Modal -->
+  <dialog id="task-modal" class="modal">
+    <div class="modal-box bg-base-200">
+      <button type="button" class="btn btn-sm btn-circle btn-ghost absolute right-3 top-3" onclick="closeModal()">
+        <i class="fa-solid fa-xmark text-base-content/60"></i>
+      </button>
+      <h3 id="modal-title" class="text-lg font-bold mb-0.5">New Task</h3>
+      <p class="text-xs text-base-content/60 mb-5" id="modal-subtitle">Add something to your board</p>
+      <form id="task-form" onsubmit="handleSubmit(event)">
+        <input type="hidden" id="edit-id">
+        <div class="form-control mb-4">
+          <label class="label pb-1"><span class="label-text text-xs font-semibold uppercase tracking-wider text-base-content/50">Title</span></label>
+          <input type="text" id="task-title" placeholder="e.g. Design landing page" class="input input-bordered bg-base-100/50 focus:bg-base-100 w-full" required minlength="3" maxlength="100">
+        </div>
+        <div class="form-control mb-4">
+          <label class="label pb-1"><span class="label-text text-xs font-semibold uppercase tracking-wider text-base-content/50">Description</span></label>
+          <textarea id="task-desc" placeholder="Add some details..." class="textarea textarea-bordered bg-base-100/50 focus:bg-base-100 w-full" rows="3" maxlength="500"></textarea>
+          <label class="label pt-1"><span class="label-text-alt text-[10px] text-base-content/40" id="char-count">0 / 500</span></label>
+        </div>
+        <div id="modal-error" class="hidden p-3 rounded bg-error/10 border border-error/20 text-error text-sm mb-4">
+          <i class="fa-solid fa-circle-exclamation mr-1.5"></i>
+          <span id="modal-error-text"></span>
+        </div>
+        <div class="modal-action">
+          <button type="button" class="btn btn-ghost btn-sm" onclick="closeModal()">Cancel</button>
+          <button type="submit" class="btn border border-base-content/20 bg-base-content text-base-100 hover:opacity-90 btn-sm gap-1.5" id="submit-btn">
+            <i class="fa-solid fa-plus"></i> Create
+          </button>
+        </div>
+      </form>
+    </div>
+    <form method="dialog" class="modal-backdrop bg-neutral/80"><button>close</button></form>
+  </dialog>
+
+  <!-- Delete Confirm Modal -->
+  <dialog id="delete-modal" class="modal">
+    <div class="modal-box bg-base-200 max-w-sm">
+      <h3 class="text-base font-bold mb-2">Delete this task?</h3>
+      <p class="text-sm text-base-content/60">This can't be undone.</p>
+      <div class="modal-action">
+        <button class="btn btn-ghost btn-sm" onclick="document.getElementById('delete-modal').close()">Cancel</button>
+        <button class="btn bg-error/10 hover:bg-error/20 text-error border-0 btn-sm gap-1.5" id="confirm-delete-btn" onclick="confirmDelete()">
+          <i class="fa-solid fa-trash"></i> Delete
+        </button>
+      </div>
+    </div>
+    <form method="dialog" class="modal-backdrop bg-neutral/80"><button>close</button></form>
+  </dialog>
+
+  <!-- View Task Modal -->
+  <dialog id="view-modal" class="modal">
+    <div class="modal-box bg-base-200">
+      <button type="button" class="btn btn-sm btn-circle btn-ghost absolute right-3 top-3" onclick="document.getElementById('view-modal').close()">
+        <i class="fa-solid fa-xmark text-base-content/60"></i>
+      </button>
+      <div id="view-badge" class="mb-3"></div>
+      <h3 id="view-title" class="text-xl font-bold mb-3"></h3>
+      <p id="view-desc" class="text-base text-base-content/85 mb-6 whitespace-pre-wrap leading-relaxed py-2"></p>
+      
+      <div class="w-full h-px bg-base-content/10 my-4"></div>
+      <div class="flex gap-6 text-[11px] text-base-content/40">
+        <span><i class="fa-regular fa-clock mr-1"></i>Created <span id="view-created"></span></span>
+        <span><i class="fa-solid fa-arrow-rotate-right mr-1"></i>Updated <span id="view-updated"></span></span>
+      </div>
+      <div class="modal-action mt-6">
+        <button class="btn btn-ghost btn-sm" onclick="document.getElementById('view-modal').close()">Close</button>
+        <button class="btn border border-base-content/20 bg-base-content text-base-100 hover:opacity-90 btn-sm gap-1.5" id="view-edit-btn">
+          <i class="fa-solid fa-pen text-xs"></i> Edit
+        </button>
+      </div>
+    </div>
+    <form method="dialog" class="modal-backdrop bg-neutral/80"><button>close</button></form>
+  </dialog>
+
+  <script>
+    const API = '/api/v1/tasks';
+    let allTasks = [];
+    let deleteTargetId = null;
+    let draggedId = null;
+
+    // --- API ---
+
+    async function fetchAllTasks() {
+      try {
+        let page = 0, all = [];
+        while (true) {
+          const res = await fetch(`${API}?page=${page}&size=100&sort=createdAt,desc`);
+          if (!res.ok) throw new Error('Failed to fetch');
+          const data = await res.json();
+          all = all.concat(data.content);
+          if (data.last) break;
+          page++;
+        }
+        allTasks = all;
+        render();
+      } catch (e) {
+        document.getElementById('kanban-board').classList.remove('hidden');
+        document.getElementById('loading-state').classList.add('hidden');
+        document.getElementById('col-TODO').innerHTML =
+          '<div class="p-3 bg-error/10 border border-error/20 text-error rounded text-sm"><i class="fa-solid fa-triangle-exclamation mr-1.5"></i> Could not load tasks</div>';
+      }
+    }
+
+    async function createTaskAPI(title, description) {
+      const res = await fetch(API, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title, description: description || null })
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.message || 'Failed to create task');
+      }
+      return res.json();
+    }
+
+    async function updateTaskAPI(id, title, description) {
+      const res = await fetch(`${API}/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title, description: description || null })
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.message || 'Failed to update task');
+      }
+      return res.json();
+    }
+
+    async function updateStatusAPI(id, status) {
+      const res = await fetch(`${API}/${id}/status?status=${status}`, { method: 'PATCH' });
+      if (!res.ok) throw new Error('Failed to update status');
+      return res.json();
+    }
+
+    async function deleteTaskAPI(id) {
+      const res = await fetch(`${API}/${id}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error('Failed to delete task');
+    }
+
+    // --- Rendering ---
+
+    function render() {
+      document.getElementById('loading-state').classList.add('hidden');
+
+      const todo = allTasks.filter(t => t.status === 'TODO');
+      const progress = allTasks.filter(t => t.status === 'IN_PROGRESS');
+      const done = allTasks.filter(t => t.status === 'DONE');
+
+      document.getElementById('stat-total').textContent = allTasks.length;
+      document.getElementById('stat-todo').textContent = todo.length;
+      document.getElementById('stat-progress').textContent = progress.length;
+      document.getElementById('stat-done').textContent = done.length;
+      document.getElementById('count-todo').textContent = todo.length;
+      document.getElementById('count-progress').textContent = progress.length;
+      document.getElementById('count-done').textContent = done.length;
+
+      if (allTasks.length === 0) {
+        document.getElementById('kanban-board').classList.add('hidden');
+        document.getElementById('empty-state').classList.remove('hidden');
+        return;
+      }
+
+      document.getElementById('kanban-board').classList.remove('hidden');
+      document.getElementById('empty-state').classList.add('hidden');
+
+      renderColumn('col-TODO', todo);
+      renderColumn('col-IN_PROGRESS', progress);
+      renderColumn('col-DONE', done);
+    }
+
+    function renderColumn(colId, tasks) {
+      const col = document.getElementById(colId);
+      if (tasks.length === 0) {
+        col.innerHTML = `<div class="flex flex-col items-center justify-center py-12 text-base-content/20">
+          <i class="fa-solid fa-arrow-down text-lg mb-1"></i>
+          <span class="text-[11px] font-semibold tracking-wide uppercase">Drop here</span>
+        </div>`;
+        return;
+      }
+      col.innerHTML = tasks.map(t => renderCard(t)).join('');
+    }
+
+    function renderCard(t) {
+      const isDone = t.status === 'DONE';
+      return `
+        <div class="task-card project-card bg-base-200 shadow-sm rounded-lg" draggable="true"
+             data-id="${t.id}"
+             ondragstart="handleDragStart(event)" ondragend="handleDragEnd(event)">
+          <div class="p-4 flex flex-col gap-1.5">
+            <div class="flex items-start justify-between gap-2">
+              <h3 class="font-bold text-[15px] leading-snug flex-1 cursor-pointer text-base-content ${isDone ? 'line-through opacity-30' : ''}"
+                  onclick="viewTask(${t.id})">${esc(t.title)}</h3>
+              <div class="actions flex gap-0.5 shrink-0 -mt-1">
+                <button class="btn btn-ghost btn-xs btn-square" onclick="openEditModal(${t.id})" title="Edit">
+                  <i class="fa-solid fa-pen text-[11px] text-base-content/40 hover:text-base-content/80"></i>
+                </button>
+                <button class="btn btn-ghost btn-xs btn-square hover:text-error" onclick="openDeleteModal(${t.id})" title="Delete">
+                  <i class="fa-solid fa-trash text-[11px] text-base-content/40 hover:text-error"></i>
+                </button>
+              </div>
+            </div>
+            ${t.description ? `<p class="project-card-desc text-xs leading-relaxed text-base-content/60 line-clamp-2 ${isDone ? 'line-through opacity-50' : ''}">${esc(t.description)}</p>` : ''}
+            <div class="mt-2 pt-2 border-t border-base-content/5 flex items-center justify-between">
+              <span class="text-[10px] font-medium tracking-wide text-base-content/40 uppercase">${timeAgo(t.createdAt)}</span>
+            </div>
+          </div>
+        </div>`;
+    }
+
+    // --- Drag and Drop ---
+
+    function handleDragStart(e) {
+      draggedId = parseInt(e.target.closest('.task-card').dataset.id);
+      e.target.closest('.task-card').classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', draggedId);
+    }
+
+    function handleDragEnd(e) {
+      e.target.closest('.task-card')?.classList.remove('dragging');
+      document.querySelectorAll('.kanban-col').forEach(c => c.classList.remove('drag-over'));
+      draggedId = null;
+    }
+
+    function handleDragOver(e) {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      e.currentTarget.classList.add('drag-over');
+    }
+
+    function handleDragLeave(e) {
+      if (!e.currentTarget.contains(e.relatedTarget)) {
+        e.currentTarget.classList.remove('drag-over');
+      }
+    }
+
+    async function handleDrop(e) {
+      e.preventDefault();
+      const col = e.currentTarget;
+      col.classList.remove('drag-over');
+      const newStatus = col.dataset.status;
+      const id = parseInt(e.dataTransfer.getData('text/plain'));
+
+      const task = allTasks.find(t => t.id === id);
+      if (!task || task.status === newStatus) return;
+
+      task.status = newStatus;
+      render();
+
+      try {
+        await updateStatusAPI(id, newStatus);
+      } catch {
+        await fetchAllTasks();
+      }
+    }
+
+    // --- View Task ---
+
+    function viewTask(id) {
+      const t = allTasks.find(t => t.id === id);
+      if (!t) return;
+
+      const badges = {
+        TODO: '<span class="px-2 py-0.5 text-[10px] font-bold tracking-widest uppercase rounded bg-base-content/10 text-base-content/60 border border-base-content/10">To Do</span>',
+        IN_PROGRESS: '<span class="px-2 py-0.5 text-[10px] font-bold tracking-widest uppercase rounded bg-base-content/20 text-base-content/80 border border-base-content/20">In Progress</span>',
+        DONE: '<span class="px-2 py-0.5 text-[10px] font-bold tracking-widest uppercase rounded bg-base-content/30 text-base-content/90 border border-base-content/30">Done</span>'
+      };
+
+      document.getElementById('view-badge').innerHTML = badges[t.status];
+      document.getElementById('view-title').textContent = t.title;
+      document.getElementById('view-desc').textContent = t.description || 'No description provided.';
+      document.getElementById('view-created').textContent = formatDate(t.createdAt);
+      document.getElementById('view-updated').textContent = formatDate(t.updatedAt);
+      document.getElementById('view-edit-btn').onclick = () => {
+        document.getElementById('view-modal').close();
+        openEditModal(id);
+      };
+      document.getElementById('view-modal').showModal();
+    }
+
+    // --- Modals ---
+
+    function openCreateModal() {
+      document.getElementById('modal-title').textContent = 'New Task';
+      document.getElementById('modal-subtitle').textContent = 'Add something to your board';
+      document.getElementById('submit-btn').innerHTML = '<i class="fa-solid fa-plus text-xs"></i> Create';
+      document.getElementById('edit-id').value = '';
+      document.getElementById('task-title').value = '';
+      document.getElementById('task-desc').value = '';
+      document.getElementById('char-count').textContent = '0 / 500';
+      hideModalError();
+      document.getElementById('task-modal').showModal();
+      document.getElementById('task-title').focus();
+    }
+
+    function openEditModal(id) {
+      const t = allTasks.find(t => t.id === id);
+      if (!t) return;
+      document.getElementById('modal-title').textContent = 'Edit Task';
+      document.getElementById('modal-subtitle').textContent = 'Update the details';
+      document.getElementById('submit-btn').innerHTML = '<i class="fa-solid fa-check text-xs"></i> Save';
+      document.getElementById('edit-id').value = id;
+      document.getElementById('task-title').value = t.title;
+      document.getElementById('task-desc').value = t.description || '';
+      document.getElementById('char-count').textContent = `${(t.description || '').length} / 500`;
+      hideModalError();
+      document.getElementById('task-modal').showModal();
+      document.getElementById('task-title').focus();
+    }
+
+    function closeModal() { document.getElementById('task-modal').close(); }
+
+    function openDeleteModal(id) {
+      deleteTargetId = id;
+      document.getElementById('delete-modal').showModal();
+    }
+
+    async function confirmDelete() {
+      document.getElementById('delete-modal').close();
+      if (deleteTargetId === null) return;
+      const id = deleteTargetId;
+      deleteTargetId = null;
+
+      allTasks = allTasks.filter(t => t.id !== id);
+      render();
+
+      try {
+        await deleteTaskAPI(id);
+      } catch {
+        await fetchAllTasks();
+      }
+    }
+
+    async function handleSubmit(e) {
+      e.preventDefault();
+      const id = document.getElementById('edit-id').value;
+      const title = document.getElementById('task-title').value.trim();
+      const desc = document.getElementById('task-desc').value.trim();
+      hideModalError();
+
+      try {
+        if (id) {
+          await updateTaskAPI(id, title, desc);
+        } else {
+          await createTaskAPI(title, desc);
+        }
+        closeModal();
+        await fetchAllTasks();
+      } catch (err) {
+        showModalError(err.message);
+      }
+    }
+
+    function showModalError(msg) {
+      document.getElementById('modal-error').classList.remove('hidden');
+      document.getElementById('modal-error-text').textContent = msg;
+    }
+    function hideModalError() {
+      document.getElementById('modal-error').classList.add('hidden');
+    }
+
+    // --- Utils ---
+
+    function esc(str) {
+      const d = document.createElement('div');
+      d.textContent = str;
+      return d.innerHTML;
+    }
+
+    function timeAgo(dateStr) {
+      if (!dateStr) return '';
+      const diff = Math.floor((Date.now() - new Date(dateStr)) / 1000);
+      if (diff < 60) return 'just now';
+      if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+      if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+      if (diff < 604800) return `${Math.floor(diff / 86400)}d ago`;
+      return new Date(dateStr).toLocaleDateString();
+    }
+
+    function formatDate(dateStr) {
+      if (!dateStr) return '\u2014';
+      return new Date(dateStr).toLocaleString();
+    }
+
+    document.getElementById('task-desc').addEventListener('input', function() {
+      document.getElementById('char-count').textContent = `${this.value.length} / 500`;
+    });
+
+    // --- Init ---
+    fetchAllTasks();
+  </script>
+
+</body>
+</html>
