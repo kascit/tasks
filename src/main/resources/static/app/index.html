@@ -65,7 +65,7 @@
   </script>
 
   <!-- 2. The Abyssal Integration Script -->
-  <script src="https://dhanur.me/js/shell.js" defer></script>
+  <script type="module" src="https://dhanur.me/js/shell.js"></script>
 </head>
 <body>
 
@@ -77,10 +77,10 @@
     <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
         <p class="text-lg text-base-content/85">Drag cards between columns to change status.</p>
         <div class="flex gap-2 shrink-0">
-            <a href="https://tasks.dhanur.me/swagger-ui/index.html" class="btn btn-ghost btn-sm gap-1.5 text-xs">
+            <a href="https://tasks.dhanur.me/swagger-ui/index.html" class="dui-btn dui-btn-ghost gap-1.5 text-[11px] h-8 px-3">
               <i class="fa-solid fa-code text-base-content/60"></i> API
             </a>
-            <button onclick="openCreateModal()" class="btn border border-base-content/20 hover:border-base-content/40 hover:bg-base-content/5 bg-transparent text-base-content btn-sm gap-1.5 text-xs shadow-sm">
+            <button onclick="openCreateModal()" class="dui-btn dui-btn-primary gap-1.5 text-[11px] h-8 px-3">
               <i class="fa-solid fa-plus text-base-content/60"></i> New Task
             </button>
         </div>
@@ -168,7 +168,7 @@
       </div>
       <p class="text-lg font-semibold text-base-content/70 mb-2">No tasks yet</p>
       <p class="text-sm text-base-content/40 mb-8 max-w-sm mx-auto">Create your first task to populate your board and start tracking progress.</p>
-      <button onclick="openCreateModal()" class="btn bg-base-content hover:bg-base-content/90 text-base-100 border-0 btn-sm gap-2 shadow-md">
+      <button onclick="openCreateModal()" class="dui-btn dui-btn-primary h-10 px-5 text-sm gap-2">
         <i class="fa-solid fa-plus"></i> Create Task
       </button>
     </div>
@@ -198,8 +198,8 @@
           <span id="modal-error-text"></span>
         </div>
         <div class="modal-action">
-          <button type="button" class="btn btn-ghost btn-sm" onclick="closeModal()">Cancel</button>
-          <button type="submit" class="btn border border-base-content/20 bg-base-content text-base-100 hover:opacity-90 btn-sm gap-1.5" id="submit-btn">
+          <button type="button" class="dui-btn dui-btn-ghost text-xs h-8 px-3" onclick="closeModal()">Cancel</button>
+          <button type="submit" class="dui-btn dui-btn-primary text-xs h-8 px-3 gap-1.5" id="submit-btn">
             <i class="fa-solid fa-plus"></i> Create
           </button>
         </div>
@@ -214,8 +214,8 @@
       <h3 class="text-base font-bold mb-2">Delete this task?</h3>
       <p class="text-sm text-base-content/60">This can't be undone.</p>
       <div class="modal-action">
-        <button class="btn btn-ghost btn-sm" onclick="document.getElementById('delete-modal').close()">Cancel</button>
-        <button class="btn bg-error/10 hover:bg-error/20 text-error border-0 btn-sm gap-1.5" id="confirm-delete-btn" onclick="confirmDelete()">
+        <button class="dui-btn dui-btn-ghost text-xs h-8 px-3" onclick="document.getElementById('delete-modal').close()">Cancel</button>
+        <button class="dui-btn bg-error/10 hover:bg-error/20 text-error border-0 text-xs h-8 px-3 gap-1.5" id="confirm-delete-btn" onclick="confirmDelete()">
           <i class="fa-solid fa-trash"></i> Delete
         </button>
       </div>
@@ -239,8 +239,8 @@
         <span><i class="fa-solid fa-arrow-rotate-right mr-1"></i>Updated <span id="view-updated"></span></span>
       </div>
       <div class="modal-action mt-6">
-        <button class="btn btn-ghost btn-sm" onclick="document.getElementById('view-modal').close()">Close</button>
-        <button class="btn border border-base-content/20 bg-base-content text-base-100 hover:opacity-90 btn-sm gap-1.5" id="view-edit-btn">
+        <button class="dui-btn dui-btn-ghost text-xs h-8 px-3" onclick="document.getElementById('view-modal').close()">Close</button>
+        <button class="dui-btn dui-btn-primary text-xs h-8 px-3 gap-1.5" id="view-edit-btn">
           <i class="fa-solid fa-pen text-xs"></i> Edit
         </button>
       </div>
@@ -360,7 +360,7 @@
     function renderCard(t) {
       const isDone = t.status === 'DONE';
       return `
-        <div class="task-card project-card bg-base-200 shadow-sm rounded-lg" draggable="true"
+        <div class="task-card dui-surface mb-0" draggable="true"
              data-id="${t.id}"
              ondragstart="handleDragStart(event)" ondragend="handleDragEnd(event)">
           <div class="p-4 flex flex-col gap-1.5">
