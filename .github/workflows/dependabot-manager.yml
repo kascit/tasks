@@ -1,5 +1,4 @@
-name: Dependabot Auto-merge
-
+name: Dependabot Manager
 on: pull_request
 
 permissions:
@@ -9,20 +8,26 @@ permissions:
 jobs:
   dependabot:
     runs-on: ubuntu-latest
-    if: vars.SKIP_ACTIONS != 'true' && github.actor == 'dependabot[bot]'
+    if: github.actor == 'dependabot[bot]'
     steps:
       - name: Dependabot metadata
         id: metadata
         uses: dependabot/fetch-metadata@v3
         with:
           github-token: "${{ secrets.GITHUB_TOKEN }}"
-      - name: Approve PR
-        run: gh pr review --approve "$PR_URL"
+
+      - name: Auto-close PR on Secondary
+        if: vars.SKIP_ACTIONS == 'true'
+        run: gh pr close "$PR_URL" --comment "Auto-closing Dependabot PR on mirror." --delete-branch
         env:
           PR_URL: ${{github.event.pull_request.html_url}}
           GH_TOKEN: ${{secrets.GITHUB_TOKEN}}
-      - name: Auto-merge PR
-        run: gh pr merge --auto --squash "$PR_URL"
+
+      - name: Auto-merge PR on Primary
+        if: vars.SKIP_ACTIONS != 'true'
+        run: |
+          gh pr review --approve "$PR_URL"
+          gh pr merge --auto --squash "$PR_URL"
         env:
           PR_URL: ${{github.event.pull_request.html_url}}
           GH_TOKEN: ${{secrets.GITHUB_TOKEN}}
