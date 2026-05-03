@@ -1,0 +1,28 @@
+version: 2
+updates:
+  - package-ecosystem: "maven"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "03:30"
+      timezone: "Etc/UTC"
+    target-branch: "main"
+    open-pull-requests-limit: 3
+    rebase-strategy: "auto"
+    commit-message:
+      prefix: "chore"
+      include: "scope"
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "03:30"
+      timezone: "Etc/UTC"
+    target-branch: "main"
+    open-pull-requests-limit: 3
+    rebase-strategy: "auto"
+    commit-message:
+      prefix: "chore"
+      include: "scope"
