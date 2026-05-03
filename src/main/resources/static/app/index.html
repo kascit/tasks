@@ -65,9 +65,124 @@
   </script>
 
   <!-- 2. The Abyssal Integration Script -->
-  <script type="module" src="https://dhanur.me/js/shell.js"></script>
+  <script src="https://dhanur.me/js/shell.min.js"></script>
 </head>
 <body>
+<div class="navbar site-topbar fixed top-0 left-0 right-0 z-50 h-16">
+    <!-- Mobile hamburger -->
+    <div class="flex-none lg:hidden">
+        <label id="hamburger-toggle" for="my-drawer-2" aria-label="Open menu" class="btn btn-ghost btn-circle btn-sm transition-colors duration-200">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
+        </label>
+    </div>
+
+    <!-- Logo -->
+    <div class="flex-1 flex justify-center items-center lg:flex lg:justify-start">
+        <a href="https://dhanur.me/" class="btn btn-ghost hover:bg-transparent hover:border-transparent normal-case text-xl font-bold text-base-content site-logo-link">
+            dhanur.me
+        </a>
+    </div>
+
+    <div class="flex-none lg:hidden" aria-hidden="true"><div class="btn btn-circle btn-sm invisible"></div></div>
+
+    <!-- Desktop Menu -->
+    <div class="flex-none hidden lg:flex">
+        <ul class="menu menu-horizontal px-1 items-center">
+            
+            <!-- Apps Grid -->
+            <li data-nav-chrome="apps" class="ml-1">
+                <div class="relative p-0" data-dropdown="apps">
+                    <div tabindex="0" role="button" class="btn btn-ghost btn-square tooltip tooltip-bottom" data-tooltip-label="Apps" data-tooltip-position="bottom" aria-label="Apps">
+                        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path d="M5 3a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2V5a2 2 0 00-2-2H5zM5 11a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2v-2a2 2 0 00-2-2H5zM11 5a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V5zM11 13a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path></svg>
+                    </div>
+                    <div class="dropdown-panel z-50 mt-2 p-4 bg-base-100 border border-base-content/10 rounded-box w-64 right-0 mr-2 md:mr-4">
+                        <div class="grid grid-cols-3 gap-2" data-apps-grid>
+                            <!-- Apps grid populated by manifest.js -->
+                            <div class="col-span-3 flex justify-center py-4 opacity-50"><span class="loading loading-spinner loading-sm"></span></div>
+                        </div>
+                    </div>
+                </div>
+            </li>
+
+            <!-- Account -->
+            <li data-nav-chrome="account" class="ml-1">
+                <div class="relative p-0" data-dropdown="account">
+                    <div tabindex="0" role="button" class="btn btn-ghost btn-circle tooltip tooltip-bottom" data-tooltip-label="Account" data-tooltip-position="bottom" aria-label="Account">
+                        <div data-auth="nav-guest-avatar" class="w-9 h-9 rounded-full bg-base-300 flex items-center justify-center">
+                            <i class="fa-solid fa-user text-base-content/50 text-sm"></i>
+                        </div>
+                        <div data-auth="nav-authed-avatar" class="hidden w-9 h-9 rounded-full ring-2 ring-primary ring-offset-base-100 ring-offset-1 overflow-hidden">
+                            <img src="" alt="Profile" class="w-full h-full object-cover" />
+                        </div>
+                    </div>
+                    <div class="dropdown-panel z-50 mt-2 bg-base-100 border border-base-content/10 rounded-box w-64 right-0 mr-2 md:mr-4 overflow-hidden">
+                        
+                        <!-- authed header -->
+                        <div data-auth="nav-authed-header" class="hidden px-3 pt-3 pb-2 border-b border-base-content/10 cursor-default select-none">
+                            <div class="flex items-center gap-2.5">
+                                <div class="w-8 h-8 rounded-full overflow-hidden shrink-0"><img data-auth="nav-authed-header-avatar" class="w-full h-full object-cover" src="" alt="Profile" /></div>
+                                <div class="flex-1 min-w-0">
+                                    <div class="font-semibold truncate text-sm" data-auth="nav-name"></div>
+                                    <div class="text-xs opacity-60 truncate" data-auth="nav-email"></div>
+                                </div>
+                                <span class="badge badge-sm hidden" data-auth="nav-role"></span>
+                            </div>
+                        </div>
+
+                        <!-- guest header -->
+                        <div data-auth="nav-guest-header" class="px-3 pt-3 pb-2 border-b border-base-content/10 cursor-default select-none">
+                            <div class="flex items-center gap-2.5">
+                                <div class="w-8 h-8 rounded-full bg-base-300 flex items-center justify-center shrink-0">
+                                    <i class="fa-solid fa-user text-base-content/40"></i>
+                                </div>
+                                <div class="flex-1 min-w-0">
+                                    <div class="font-semibold text-sm">Guest</div>
+                                    <div class="text-xs opacity-60">Not signed in</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Credits display -->
+                        <div class="hidden px-3 py-1.5 border-b border-base-content/10" data-auth="credits-row">
+                            <div class="flex items-center justify-between text-xs">
+                                <span class="flex items-center gap-1.5 opacity-70">
+                                    <span>🪙</span>
+                                    <span data-auth="credits-balance">—</span>
+                                    <span class="opacity-60">credits</span>
+                                </span>
+                                <span class="opacity-40 text-[10px]" data-auth="credits-reset"></span>
+                            </div>
+                        </div>
+
+                        <ul class="menu p-2">
+                            <li data-nav-chrome="theme">
+                                <div class="flex items-center gap-2.5 px-2.5 py-2">
+                                    <i class="fa-solid fa-circle-half-stroke w-4 text-center opacity-60"></i>
+                                    <div id="theme-toggle" class="theme-switcher w-full bg-base-300/70 text-xs font-medium">
+                                        <button data-theme-mode="light" class="theme-switcher-btn rounded-md px-2 py-1.5 cursor-pointer"><i class="fa-solid fa-sun mr-1"></i>Light</button>
+                                        <button data-theme-mode="dark" class="theme-switcher-btn rounded-md px-2 py-1.5 cursor-pointer"><i class="fa-solid fa-moon mr-1"></i>Dark</button>
+                                        <button data-theme-mode="auto" class="theme-switcher-btn rounded-md px-2 py-1.5 cursor-pointer"><i class="fa-solid fa-circle-half-stroke mr-1"></i>Auto</button>
+                                    </div>
+                                </div>
+                            </li>
+                            <li data-auth="login-item">
+                                <a class="flex items-center gap-3" href="https://auth.dhanur.me" data-auth="login-btn"><i class="fa-solid fa-right-to-bracket w-4 text-center"></i><span>Sign In</span></a>
+                            </li>
+                            <li class="hidden" data-auth="account-item">
+                                <a class="flex items-center gap-3" href="https://auth.dhanur.me"><i class="fa-solid fa-gear w-4 text-center"></i><span>Account Settings</span></a>
+                            </li>
+                            <li class="hidden border-t border-base-content/10 mt-1 pt-1" data-auth="logout-item">
+                                <button type="button" class="w-full text-left flex items-center gap-3 text-error/80 hover:text-error" data-auth="logout-btn"><i class="fa-solid fa-right-from-bracket w-4 text-center"></i><span>Sign Out</span></button>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </li>
+        </ul>
+    </div>
+</div>
+
+
 
   <!-- The shell.js will automatically wrap this main element within a .drawer context -->
   <main class="w-full max-w-7xl mx-auto p-4 lg:p-8">
@@ -75,12 +190,13 @@
     <!-- Header -->
     <h1 class="text-4xl lg:text-5xl font-extrabold tracking-tight mb-6 mt-14">Task Board</h1>
     <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
-        <p class="text-lg text-base-content/85">Drag cards between columns to change status.</p>
+        <p id="mode-copy" class="text-lg text-base-content/85">Drag cards between columns to change status.</p>
         <div class="flex gap-2 shrink-0">
-            <a href="https://tasks.dhanur.me/swagger-ui/index.html" class="dui-btn dui-btn-ghost gap-1.5 text-[11px] h-8 px-3">
+            <span id="mode-chip" class="badge badge-outline border-base-content/20 text-[10px] font-bold tracking-wider">GUEST</span>
+            <a href="https://tasks.dhanur.me/swagger-ui/index.html" class="btn btn-ghost gap-1.5 text-[11px] h-8 px-3">
               <i class="fa-solid fa-code text-base-content/60"></i> API
             </a>
-            <button onclick="openCreateModal()" class="dui-btn dui-btn-primary gap-1.5 text-[11px] h-8 px-3">
+            <button onclick="openCreateModal()" class="btn btn-primary gap-1.5 text-[11px] h-8 px-3">
               <i class="fa-solid fa-plus text-base-content/60"></i> New Task
             </button>
         </div>
@@ -116,7 +232,7 @@
     </div>
 
     <!-- Kanban Board -->
-    <div id="kanban-board" class="grid grid-cols-1 md:grid-cols-3 gap-5 hidden">
+    <div id="kanban-board" class="grid grid-cols-1 md:grid-cols-3 gap-5" style="display:none">
 
       <!-- TODO Column -->
       <div class="kanban-col" data-status="TODO"
@@ -162,13 +278,13 @@
     </div>
 
     <!-- Empty State -->
-    <div id="empty-state" class="hidden text-center py-32 flex flex-col items-center justify-center">
+    <div id="empty-state" class="text-center py-32 flex flex-col items-center justify-center" style="display:none">
       <div class="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-base-200 shadow-sm border border-base-content/10 mb-6">
         <i class="fa-solid fa-clipboard-list text-3xl text-base-content/30 mt-1"></i>
       </div>
       <p class="text-lg font-semibold text-base-content/70 mb-2">No tasks yet</p>
       <p class="text-sm text-base-content/40 mb-8 max-w-sm mx-auto">Create your first task to populate your board and start tracking progress.</p>
-      <button onclick="openCreateModal()" class="dui-btn dui-btn-primary h-10 px-5 text-sm gap-2">
+      <button onclick="openCreateModal()" class="btn btn-primary h-10 px-5 text-sm gap-2">
         <i class="fa-solid fa-plus"></i> Create Task
       </button>
     </div>
@@ -198,8 +314,8 @@
           <span id="modal-error-text"></span>
         </div>
         <div class="modal-action">
-          <button type="button" class="dui-btn dui-btn-ghost text-xs h-8 px-3" onclick="closeModal()">Cancel</button>
-          <button type="submit" class="dui-btn dui-btn-primary text-xs h-8 px-3 gap-1.5" id="submit-btn">
+          <button type="button" class="btn btn-ghost text-xs h-8 px-3" onclick="closeModal()">Cancel</button>
+          <button type="submit" class="btn btn-primary text-xs h-8 px-3 gap-1.5" id="submit-btn">
             <i class="fa-solid fa-plus"></i> Create
           </button>
         </div>
@@ -214,8 +330,8 @@
       <h3 class="text-base font-bold mb-2">Delete this task?</h3>
       <p class="text-sm text-base-content/60">This can't be undone.</p>
       <div class="modal-action">
-        <button class="dui-btn dui-btn-ghost text-xs h-8 px-3" onclick="document.getElementById('delete-modal').close()">Cancel</button>
-        <button class="dui-btn bg-error/10 hover:bg-error/20 text-error border-0 text-xs h-8 px-3 gap-1.5" id="confirm-delete-btn" onclick="confirmDelete()">
+        <button class="btn btn-ghost text-xs h-8 px-3" onclick="document.getElementById('delete-modal').close()">Cancel</button>
+        <button class="btn bg-error/10 hover:bg-error/20 text-error border-0 text-xs h-8 px-3 gap-1.5" id="confirm-delete-btn" onclick="confirmDelete()">
           <i class="fa-solid fa-trash"></i> Delete
         </button>
       </div>
@@ -239,8 +355,8 @@
         <span><i class="fa-solid fa-arrow-rotate-right mr-1"></i>Updated <span id="view-updated"></span></span>
       </div>
       <div class="modal-action mt-6">
-        <button class="dui-btn dui-btn-ghost text-xs h-8 px-3" onclick="document.getElementById('view-modal').close()">Close</button>
-        <button class="dui-btn dui-btn-primary text-xs h-8 px-3 gap-1.5" id="view-edit-btn">
+        <button class="btn btn-ghost text-xs h-8 px-3" onclick="document.getElementById('view-modal').close()">Close</button>
+        <button class="btn btn-primary text-xs h-8 px-3 gap-1.5" id="view-edit-btn">
           <i class="fa-solid fa-pen text-xs"></i> Edit
         </button>
       </div>
@@ -250,13 +366,69 @@
 
   <script>
     const API = '/api/v1/tasks';
+    const GUEST_STORAGE_KEY = 'tasks_guest_v1';
+    const GUEST_MAX_TASKS = 25;
+
     let allTasks = [];
     let deleteTargetId = null;
     let draggedId = null;
+    let runtimeMode = 'guest';
+    let guestIdSeq = -1;
+
+    function updateModeUI(status = null) {
+      const chip = document.getElementById('mode-chip');
+      const copy = document.getElementById('mode-copy');
+      if (!chip || !copy) return;
+
+      if (runtimeMode === 'remote') {
+        chip.textContent = status?.role === 'admin' ? 'ADMIN' : 'USER';
+        chip.className = status?.role === 'admin'
+          ? 'badge badge-error text-[10px] font-bold tracking-wider'
+          : 'badge badge-success text-[10px] font-bold tracking-wider';
+        copy.textContent = 'Synced workspace. Create and update tasks with credit-metered operations.';
+        return;
+      }
+
+      chip.textContent = 'GUEST';
+      chip.className = 'badge badge-outline border-base-content/20 text-[10px] font-bold tracking-wider';
+      copy.textContent = 'Guest sandbox mode: tasks stay in this browser. Sign in to sync and migrate.';
+    }
+
+    function loadGuestTasks() {
+      try {
+        const raw = localStorage.getItem(GUEST_STORAGE_KEY);
+        if (!raw) return [];
+        const parsed = JSON.parse(raw);
+        return Array.isArray(parsed) ? parsed : [];
+      } catch {
+        return [];
+      }
+    }
+
+    function saveGuestTasks(tasks) {
+      localStorage.setItem(GUEST_STORAGE_KEY, JSON.stringify(tasks));
+      const minId = tasks.reduce((min, t) => Math.min(min, Number(t.id) || 0), 0);
+      guestIdSeq = minId <= -1 ? minId - 1 : -1;
+    }
+
+    function ensureGuestLimit() {
+      if (allTasks.length >= GUEST_MAX_TASKS) {
+        throw new Error(`Guest limit reached (${GUEST_MAX_TASKS} tasks). Sign in to unlock synced storage.`);
+      }
+    }
+
+    async function readErrorResponse(res, fallback) {
+      try {
+        const data = await res.json();
+        return data.error || data.message || fallback;
+      } catch {
+        return fallback;
+      }
+    }
 
     // --- API ---
 
-    async function fetchAllTasks() {
+    async function fetchRemoteTasks() {
       try {
         let page = 0, all = [];
         while (true) {
@@ -270,11 +442,23 @@
         allTasks = all;
         render();
       } catch (e) {
-        document.getElementById('kanban-board').classList.remove('hidden');
+        document.getElementById('kanban-board').style.display = 'grid';
         document.getElementById('loading-state').classList.add('hidden');
         document.getElementById('col-TODO').innerHTML =
           '<div class="p-3 bg-error/10 border border-error/20 text-error rounded text-sm"><i class="fa-solid fa-triangle-exclamation mr-1.5"></i> Could not load tasks</div>';
       }
+    }
+
+    function fetchGuestTasks() {
+      allTasks = loadGuestTasks();
+      render();
+    }
+
+    async function fetchAllTasks() {
+      if (runtimeMode === 'remote') {
+        return fetchRemoteTasks();
+      }
+      return fetchGuestTasks();
     }
 
     async function createTaskAPI(title, description) {
@@ -284,8 +468,7 @@
         body: JSON.stringify({ title, description: description || null })
       });
       if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.message || 'Failed to create task');
+        throw new Error(await readErrorResponse(res, 'Failed to create task'));
       }
       return res.json();
     }
@@ -297,21 +480,122 @@
         body: JSON.stringify({ title, description: description || null })
       });
       if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.message || 'Failed to update task');
+        throw new Error(await readErrorResponse(res, 'Failed to update task'));
       }
       return res.json();
     }
 
     async function updateStatusAPI(id, status) {
       const res = await fetch(`${API}/${id}/status?status=${status}`, { method: 'PATCH' });
-      if (!res.ok) throw new Error('Failed to update status');
+      if (!res.ok) throw new Error(await readErrorResponse(res, 'Failed to update status'));
       return res.json();
     }
 
     async function deleteTaskAPI(id) {
       const res = await fetch(`${API}/${id}`, { method: 'DELETE' });
-      if (!res.ok) throw new Error('Failed to delete task');
+      if (!res.ok) throw new Error(await readErrorResponse(res, 'Failed to delete task'));
+    }
+
+    function createGuestTask(title, description) {
+      ensureGuestLimit();
+      const now = new Date().toISOString();
+      const task = {
+        id: guestIdSeq--,
+        title,
+        description: description || null,
+        status: 'TODO',
+        createdAt: now,
+        updatedAt: now,
+      };
+      const next = [task, ...allTasks];
+      allTasks = next;
+      saveGuestTasks(next);
+      return task;
+    }
+
+    function updateGuestTask(id, title, description) {
+      const targetId = Number(id);
+      const next = allTasks.map((task) => {
+        if (Number(task.id) !== targetId) return task;
+        return {
+          ...task,
+          title,
+          description: description || null,
+          updatedAt: new Date().toISOString(),
+        };
+      });
+      allTasks = next;
+      saveGuestTasks(next);
+    }
+
+    function updateGuestStatus(id, status) {
+      const targetId = Number(id);
+      const next = allTasks.map((task) => {
+        if (Number(task.id) !== targetId) return task;
+        return {
+          ...task,
+          status,
+          updatedAt: new Date().toISOString(),
+        };
+      });
+      allTasks = next;
+      saveGuestTasks(next);
+    }
+
+    function deleteGuestTask(id) {
+      const targetId = Number(id);
+      const next = allTasks.filter((task) => Number(task.id) !== targetId);
+      allTasks = next;
+      saveGuestTasks(next);
+    }
+
+    async function migrateGuestTasksToRemote() {
+      const guestTasks = loadGuestTasks();
+      if (!guestTasks.length) return;
+
+      const remaining = [];
+      for (const task of guestTasks) {
+        try {
+          await createTaskAPI(task.title, task.description || '');
+        } catch {
+          remaining.push(task);
+        }
+      }
+
+      if (remaining.length === 0) {
+        localStorage.removeItem(GUEST_STORAGE_KEY);
+        return;
+      }
+
+      saveGuestTasks(remaining);
+    }
+
+    async function createTask(title, description) {
+      if (runtimeMode === 'remote') {
+        return createTaskAPI(title, description);
+      }
+      return createGuestTask(title, description);
+    }
+
+    async function updateTask(id, title, description) {
+      if (runtimeMode === 'remote') {
+        return updateTaskAPI(id, title, description);
+      }
+      return updateGuestTask(id, title, description);
+    }
+
+    async function updateTaskStatus(id, status) {
+      if (runtimeMode === 'remote') {
+        return updateStatusAPI(id, status);
+      }
+      return updateGuestStatus(id, status);
+    }
+
+    async function deleteTask(id) {
+      if (runtimeMode === 'remote') {
+        return deleteTaskAPI(id);
+      }
+      return deleteGuestTask(id);
     }
 
     // --- Rendering ---
@@ -332,13 +616,13 @@
       document.getElementById('count-done').textContent = done.length;
 
       if (allTasks.length === 0) {
-        document.getElementById('kanban-board').classList.add('hidden');
-        document.getElementById('empty-state').classList.remove('hidden');
+        document.getElementById('kanban-board').style.display = 'none';
+        document.getElementById('empty-state').style.display = 'flex';
         return;
       }
 
-      document.getElementById('kanban-board').classList.remove('hidden');
-      document.getElementById('empty-state').classList.add('hidden');
+      document.getElementById('kanban-board').style.display = 'grid';
+      document.getElementById('empty-state').style.display = 'none';
 
       renderColumn('col-TODO', todo);
       renderColumn('col-IN_PROGRESS', progress);
@@ -360,7 +644,7 @@
     function renderCard(t) {
       const isDone = t.status === 'DONE';
       return `
-        <div class="task-card dui-surface mb-0" draggable="true"
+        <div class="task-card bg-base-100 border border-base-content/10 rounded-xl shadow-sm mb-0" draggable="true"
              data-id="${t.id}"
              ondragstart="handleDragStart(event)" ondragend="handleDragEnd(event)">
           <div class="p-4 flex flex-col gap-1.5">
@@ -425,7 +709,7 @@
       render();
 
       try {
-        await updateStatusAPI(id, newStatus);
+        await updateTaskStatus(id, newStatus);
       } catch {
         await fetchAllTasks();
       }
@@ -502,7 +786,7 @@
       render();
 
       try {
-        await deleteTaskAPI(id);
+        await deleteTask(id);
       } catch {
         await fetchAllTasks();
       }
@@ -517,9 +801,9 @@
 
       try {
         if (id) {
-          await updateTaskAPI(id, title, desc);
+          await updateTask(id, title, desc);
         } else {
-          await createTaskAPI(title, desc);
+          await createTask(title, desc);
         }
         closeModal();
         await fetchAllTasks();
@@ -563,8 +847,35 @@
       document.getElementById('char-count').textContent = `${this.value.length} / 500`;
     });
 
+    async function syncRuntimeMode(status) {
+      const authed = status?.authenticated === true;
+      runtimeMode = authed ? 'remote' : 'guest';
+      updateModeUI(status || { role: 'guest' });
+
+      if (runtimeMode === 'remote') {
+        await migrateGuestTasksToRemote();
+      }
+      await fetchAllTasks();
+    }
+
+    function initAuthBridge() {
+      const auth = window.AUTH;
+      if (auth && typeof auth.onReady === 'function') {
+        auth.onReady((payload) => {
+          const status = payload?.status || payload || auth.status || null;
+          syncRuntimeMode(status);
+        });
+      } else {
+        setTimeout(() => syncRuntimeMode(null), 400);
+      }
+
+      document.addEventListener('authChanged', (event) => {
+        syncRuntimeMode(event.detail || null);
+      });
+    }
+
     // --- Init ---
-    fetchAllTasks();
+    initAuthBridge();
   </script>
 
 </body>

@@ -1,0 +1,6 @@
+{
+  "web_apps": [{
+    "manifest": "https://dhanur.me/icons/site.webmanifest",
+    "details": { "paths": ["/*"] }
+  }]
+}
