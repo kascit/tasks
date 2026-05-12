@@ -247,15 +247,8 @@
                 data-tooltip-position="bottom"
                 aria-label="Apps"
               >
-                <svg
-                  class="w-5 h-5"
-                  fill="currentColor"
-                  viewBox="0 0 20 20"
-                  xmlns="http://www.w3.org/2000/svg"
-                >
-                  <path
-                    d="M5 3a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2V5a2 2 0 00-2-2H5zM5 11a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2v-2a2 2 0 00-2-2H5zM11 5a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V5zM11 13a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"
-                  ></path>
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="currentColor" viewBox="0 0 16 16">
+                  <circle cx="2" cy="2" r="1.5"></circle><circle cx="8" cy="2" r="1.5"></circle><circle cx="14" cy="2" r="1.5"></circle><circle cx="2" cy="8" r="1.5"></circle><circle cx="8" cy="8" r="1.5"></circle><circle cx="14" cy="8" r="1.5"></circle><circle cx="2" cy="14" r="1.5"></circle><circle cx="8" cy="14" r="1.5"></circle><circle cx="14" cy="14" r="1.5"></circle>
                 </svg>
               </div>
               <div
@@ -623,7 +616,7 @@
             <i class="fa-solid fa-code text-base-content/60"></i> API
           </a>
           <button
-            onclick="openCreateModal()"
+            data-action="open-create-modal"
             class="btn btn-primary gap-1.5 text-[11px] h-8 px-3"
           >
             <i class="fa-solid fa-plus text-base-content/60"></i> New Task
@@ -784,7 +777,7 @@
           progress.
         </p>
         <button
-          onclick="openCreateModal()"
+          data-action="open-create-modal"
           class="btn btn-primary h-10 px-5 text-sm gap-2"
         >
           <i class="fa-solid fa-plus"></i> Create Task
@@ -798,7 +791,7 @@
         <button
           type="button"
           class="btn btn-sm btn-circle btn-ghost absolute right-3 top-3"
-          onclick="closeModal()"
+          data-action="close-modal"
         >
           <i class="fa-solid fa-xmark text-base-content/60"></i>
         </button>
@@ -806,7 +799,7 @@
         <p class="text-xs text-base-content/60 mb-5" id="modal-subtitle">
           Add something to your board
         </p>
-        <form id="task-form" onsubmit="handleSubmit(event)">
+        <form id="task-form" data-action="submit-task-form">
           <input type="hidden" id="edit-id" />
           <div class="form-control mb-4">
             <label class="label pb-1"
@@ -858,7 +851,7 @@
             <button
               type="button"
               class="btn btn-ghost text-xs h-8 px-3"
-              onclick="closeModal()"
+              data-action="close-modal"
             >
               Cancel
             </button>
@@ -885,14 +878,14 @@
         <div class="modal-action">
           <button
             class="btn btn-ghost text-xs h-8 px-3"
-            onclick="document.getElementById('delete-modal').close()"
+            data-action="close-delete-modal"
           >
             Cancel
           </button>
           <button
             class="btn bg-error/10 hover:bg-error/20 text-error border-0 text-xs h-8 px-3 gap-1.5"
             id="confirm-delete-btn"
-            onclick="confirmDelete()"
+            data-action="confirm-delete"
           >
             <i class="fa-solid fa-trash"></i> Delete
           </button>
@@ -909,7 +902,7 @@
         <button
           type="button"
           class="btn btn-sm btn-circle btn-ghost absolute right-3 top-3"
-          onclick="document.getElementById('view-modal').close()"
+          data-action="close-view-modal"
         >
           <i class="fa-solid fa-xmark text-base-content/60"></i>
         </button>
@@ -934,7 +927,7 @@
         <div class="modal-action mt-6">
           <button
             class="btn btn-ghost text-xs h-8 px-3"
-            onclick="document.getElementById('view-modal').close()"
+            data-action="close-view-modal"
           >
             Close
           </button>
@@ -1257,16 +1250,16 @@
         return `
         <div class="task-card bg-base-100 border border-base-content/10 rounded-xl shadow-sm mb-0" draggable="true"
              data-id="${t.id}"
-             ondragstart="handleDragStart(event)" ondragend="handleDragEnd(event)">
+             data-draggable>
           <div class="p-4 flex flex-col gap-1.5">
             <div class="flex items-start justify-between gap-2">
               <h3 class="font-bold text-[15px] leading-snug flex-1 cursor-pointer text-base-content ${isDone ? "line-through opacity-30" : ""}"
-                  onclick="viewTask(${t.id})">${esc(t.title)}</h3>
+                  data-action="view-task" data-id="${t.id}">${esc(t.title)}</h3>
               <div class="actions flex gap-0.5 shrink-0 -mt-1">
-                <button class="btn btn-ghost btn-xs btn-square" onclick="openEditModal(${t.id})" title="Edit">
+                <button class="btn btn-ghost btn-xs btn-square" data-action="open-edit-modal" data-id="${t.id}" title="Edit">
                   <i class="fa-solid fa-pen text-[11px] text-base-content/40 hover:text-base-content/80"></i>
                 </button>
-                <button class="btn btn-ghost btn-xs btn-square hover:text-error" onclick="openDeleteModal(${t.id})" title="Delete">
+                <button class="btn btn-ghost btn-xs btn-square hover:text-error" data-action="open-delete-modal" data-id="${t.id}" title="Delete">
                   <i class="fa-solid fa-trash text-[11px] text-base-content/40 hover:text-error"></i>
                 </button>
               </div>
