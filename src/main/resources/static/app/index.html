@@ -1,715 +1,1250 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Tasks — dhanur.me</title>
-  <!-- Required for FontAwesome Icons (Self-hosted to comply with CSP) -->
-  <link rel="stylesheet" href="/app/css/all.min.css" />
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Tasks — dhanur.me</title>
+    <!-- Required for FontAwesome Icons (Self-hosted to comply with CSP) -->
+    <link rel="stylesheet" href="/app/css/all.min.css" />
 
-  <style>
-    /* Kanban layout */
-    .kanban-col { min-height: 55vh; }
-    .kanban-col .col-body { background: oklch(var(--bc) / 0.03); border-radius: 1rem; padding: 0.5rem; min-height: 200px; }
+    <style>
+      /* Kanban layout */
+      .kanban-col {
+        min-height: 55vh;
+      }
+      .kanban-col .col-body {
+        background: oklch(var(--bc) / 0.03);
+        border-radius: 1rem;
+        padding: 0.5rem;
+        min-height: 200px;
+      }
 
-    /* Cards */
-    .task-card {
-      cursor: grab;
-      transition: transform 0.15s, box-shadow 0.15s, opacity 0.15s;
-    }
-    .task-card:active { cursor: grabbing; }
-    .task-card.dragging { opacity: 0.35; transform: scale(0.96) rotate(-1deg); }
-    .task-card:hover { transform: translateY(-2px); box-shadow: 0 6px 20px oklch(0 0 0 / 0.12); }
-    
-    .task-card .actions { opacity: 0; transition: opacity 0.15s; }
-    .task-card:hover .actions { opacity: 1; }
-    @media (max-width: 768px) { .task-card .actions { opacity: 1; } }
+      /* Cards */
+      .task-card {
+        cursor: grab;
+        transition:
+          transform 0.15s,
+          box-shadow 0.15s,
+          opacity 0.15s;
+      }
+      .task-card:active {
+        cursor: grabbing;
+      }
+      .task-card.dragging {
+        opacity: 0.35;
+        transform: scale(0.96) rotate(-1deg);
+      }
+      .task-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px oklch(0 0 0 / 0.12);
+      }
 
-    /* Card left border per status indicating progress monochromatic */
-    [data-status="TODO"] .task-card { border-left: 3px solid oklch(var(--bc) / 0.15); }
-    [data-status="IN_PROGRESS"] .task-card { border-left: 3px solid oklch(var(--bc) / 0.45); }
-    [data-status="DONE"] .task-card { border-left: 3px solid oklch(var(--bc) / 0.85); }
+      .task-card .actions {
+        opacity: 0;
+        transition: opacity 0.15s;
+      }
+      .task-card:hover .actions {
+        opacity: 1;
+      }
+      @media (max-width: 768px) {
+        .task-card .actions {
+          opacity: 1;
+        }
+      }
 
-    /* Drop highlighting */
-    .kanban-col.drag-over .col-body {
-      background: oklch(var(--bc) / 0.07);
-      outline: 2px dashed oklch(var(--bc) / 0.35);
-      outline-offset: -2px;
-    }
+      /* Card left border per status indicating progress monochromatic */
+      [data-status="TODO"] .task-card {
+        border-left: 3px solid oklch(var(--bc) / 0.15);
+      }
+      [data-status="IN_PROGRESS"] .task-card {
+        border-left: 3px solid oklch(var(--bc) / 0.45);
+      }
+      [data-status="DONE"] .task-card {
+        border-left: 3px solid oklch(var(--bc) / 0.85);
+      }
 
-    /* Column header bar monochromatic */
-    .col-header-bar {
-      height: 3px;
-      border-radius: 3px 3px 0 0;
-      margin-bottom: -1px;
-    }
-  </style>
+      /* Drop highlighting */
+      .kanban-col.drag-over .col-body {
+        background: oklch(var(--bc) / 0.07);
+        outline: 2px dashed oklch(var(--bc) / 0.35);
+        outline-offset: -2px;
+      }
 
-  <!-- 1. The Configuration Object (must be synchronously before shell.js) -->
-  <script>
-  window.SiteNavConfig = {
-      mode: "full", // "full" (navbar + drawer sidebar) or "navbar" (top bar only)
-      nav: [
-          { name: "Home", url: "https://dhanur.me/", icon: "fa-solid fa-house" }
-      ],
-      sidebarNav: [
+      /* Column header bar monochromatic */
+      .col-header-bar {
+        height: 3px;
+        border-radius: 3px 3px 0 0;
+        margin-bottom: -1px;
+      }
+    </style>
+
+    <!-- Trusted Types default policy (must run before ANY script that uses innerHTML/script.src) -->
+    <script>
+    (function(){
+      if (window.trustedTypes && window.trustedTypes.createPolicy) {
+        try {
+          window.__defaultPolicy = window.trustedTypes.createPolicy('default', {
+            createScriptURL: function(s) { return s; },
+            createHTML: function(s) { return s; }
+          });
+        } catch(e) {}
+      }
+      function installFramePolicy(m) {
+        var orig = Element.prototype[m];
+        Element.prototype[m] = function() {
+          var r = orig.apply(this, arguments);
+          var n = arguments[0];
+          if (n && n.tagName === 'IFRAME') {
+            try {
+              var w = n.contentWindow;
+              if (w && w.trustedTypes && !w.trustedTypes.defaultPolicy) {
+                w.trustedTypes.createPolicy('default', {
+                  createHTML: function(s){return s},
+                  createScript: function(s){return s},
+                  createScriptURL: function(s){return s}
+                });
+              }
+            } catch(e) {}
+          }
+          return r;
+        };
+      }
+      installFramePolicy('appendChild');
+      installFramePolicy('insertBefore');
+    })();
+    </script>
+
+    <!-- 1. The Configuration Object (must be synchronously before shell.js) -->
+    <script>
+      window.SiteNavConfig = {
+        mode: "full", // "full" (navbar + drawer sidebar) or "navbar" (top bar only)
+        nav: [
+          {
+            name: "Home",
+            url: "https://dhanur.me/",
+            icon: "fa-solid fa-house",
+          },
+        ],
+        sidebarNav: [
           { name: "Board", url: "/app/", icon: "fa-solid fa-clipboard-list" },
-          { name: "API", url: "https://tasks.dhanur.me/swagger-ui/index.html", icon: "fa-solid fa-code" }
-      ],
-      activePath: window.location.pathname, 
-      badge: { text: "SERVICE", class: "badge-neutral" },
-      showSearch: false, 
-      showAppsGrid: true, 
-      showThemeToggle: true,
-      enablePwa: false,
-      favicon: false
-  };
-  </script>
+          {
+            name: "API",
+            url: "https://tasks.dhanur.me/swagger-ui/index.html",
+            icon: "fa-solid fa-code",
+          },
+        ],
+        activePath: window.location.pathname,
+        badge: { text: "SERVICE", class: "badge-neutral" },
+        showSearch: false,
+        showAppsGrid: true,
+        showThemeToggle: true,
+        enablePwa: false,
+        favicon: false,
+      };
+    </script>
 
-  <!-- 2. The Abyssal Integration Script -->
-  <script src="https://dhanur.me/js/shell.min.js"></script>
-</head>
-<body>
-<div class="navbar site-topbar fixed top-0 left-0 right-0 z-50 h-16">
-    <!-- Mobile hamburger (button, not label, so it works on subdomains without a drawer) -->
-    <div class="flex-none lg:hidden">
-        <button id="shell-mobile-toggle" type="button" aria-label="Open menu" class="btn btn-ghost btn-circle btn-sm transition-colors duration-200">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
+    <!-- 2. The Abyssal Integration Script -->
+    <script src="https://dhanur.me/js/shell.min.js"></script>
+  </head>
+  <body>
+    <div class="navbar site-topbar fixed top-0 left-0 right-0 z-50 h-16">
+      <!-- Mobile hamburger (button, not label, so it works on subdomains without a drawer) -->
+      <div class="flex-none lg:hidden">
+        <button
+          id="shell-mobile-toggle"
+          type="button"
+          aria-label="Open menu"
+          class="btn btn-ghost btn-circle btn-sm transition-colors duration-200"
+        >
+          <svg
+            class="w-5 h-5"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M4 6h16M4 12h16M4 18h16"
+            ></path>
+          </svg>
         </button>
-    </div>
+      </div>
 
-    <!-- Logo -->
-    <div class="flex-1 flex justify-center items-center lg:flex lg:justify-start">
-        <a href="https://dhanur.me/" class="btn btn-ghost hover:bg-transparent hover:border-transparent normal-case text-xl font-bold text-base-content site-logo-link">
-            dhanur.me
+      <!-- Logo (centered on mobile) -->
+      <div
+        class="flex-1 flex justify-center items-center lg:flex lg:justify-start"
+      >
+        <a
+          href="https://dhanur.me/"
+          data-keybind="d h"
+          data-keybind-action="click"
+          data-tooltip-label="Go to home"
+          data-tooltip-shortcut="d h"
+          data-tooltip-position="bottom"
+          class="btn btn-ghost hover:bg-transparent hover:border-transparent normal-case text-xl font-bold text-base-content logo-firefly site-logo-link tooltip tooltip-bottom"
+        >
+          <div class="relative h-18 flex items-center">
+            <picture>
+              <img
+                src="https://dhanur.me/images/branding/logo-light.png"
+                alt="~/dhanur"
+                class="h-18 w-auto p-[15px] logo-dark"
+                sizes="200px"
+                data-logo-type="dark"
+                loading="eager"
+                fetchpriority="high"
+              />
+            </picture>
+            <picture class="absolute inset-0 flex items-center">
+              <img
+                src="https://dhanur.me/images/branding/logo-dark.png"
+                alt="~/dhanur"
+                class="h-18 w-auto p-[15px] logo-light"
+                sizes="200px"
+                data-logo-type="light"
+                loading="eager"
+                fetchpriority="high"
+              />
+            </picture>
+          </div>
         </a>
-    </div>
+      </div>
 
-    <div class="flex-none lg:hidden" aria-hidden="true"><div class="btn btn-circle btn-sm invisible"></div></div>
+      <div class="flex-none lg:hidden" aria-hidden="true">
+        <div class="btn btn-circle btn-sm invisible"></div>
+      </div>
 
-    <!-- Desktop Menu -->
-    <div class="flex-none hidden lg:flex">
+      <!-- Desktop Menu -->
+      <div class="flex-none hidden lg:flex">
         <ul class="menu menu-horizontal px-1 items-center">
-            
-            <!-- Apps Grid -->
-            <li data-nav-chrome="apps" class="ml-1">
-                <div class="relative p-0" data-dropdown="apps">
-                    <div tabindex="0" role="button" class="btn btn-ghost btn-square tooltip tooltip-bottom" data-tooltip-label="Apps" data-tooltip-position="bottom" aria-label="Apps">
-                        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path d="M5 3a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2V5a2 2 0 00-2-2H5zM5 11a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2v-2a2 2 0 00-2-2H5zM11 5a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V5zM11 13a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path></svg>
-                    </div>
-                    <div class="dropdown-panel z-50 mt-2 p-4 bg-base-100 border border-base-content/10 rounded-box w-64 right-0 mr-2 md:mr-4">
-                        <div class="grid grid-cols-3 gap-2" data-apps-grid>
-                            <!-- Apps grid populated by manifest.js -->
-                            <div class="col-span-3 flex justify-center py-4 opacity-50"><span class="loading loading-spinner loading-sm"></span></div>
-                        </div>
-                    </div>
+          <!-- Apps Grid -->
+          <li data-nav-chrome="apps" class="ml-1">
+            <div class="relative p-0" data-dropdown="apps">
+              <div
+                tabindex="0"
+                role="button"
+                class="btn btn-ghost btn-square tooltip tooltip-bottom"
+                data-tooltip-label="Apps"
+                data-tooltip-position="bottom"
+                aria-label="Apps"
+              >
+                <svg
+                  class="w-5 h-5"
+                  fill="currentColor"
+                  viewBox="0 0 20 20"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <path
+                    d="M5 3a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2V5a2 2 0 00-2-2H5zM5 11a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2v-2a2 2 0 00-2-2H5zM11 5a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V5zM11 13a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"
+                  ></path>
+                </svg>
+              </div>
+              <div
+                class="dropdown-panel z-50 mt-2 p-4 bg-base-100 border border-base-content/10 rounded-box w-64 right-0 mr-2 md:mr-4"
+              >
+                <div
+                  class="grid grid-cols-3 gap-2"
+                  data-app-menu-grid="desktop"
+                >
+                  <!-- Apps grid populated by manifest.js -->
+                  <div class="col-span-3 flex justify-center py-4 opacity-50">
+                    <span class="loading loading-spinner loading-sm"></span>
+                  </div>
                 </div>
-            </li>
+              </div>
+            </div>
+          </li>
 
-            <!-- Account -->
-            <li data-nav-chrome="account" class="ml-1">
-                <div class="relative p-0" data-dropdown="account">
-                    <div tabindex="0" role="button" class="btn btn-ghost btn-circle tooltip tooltip-bottom" data-tooltip-label="Account" data-tooltip-position="bottom" aria-label="Account">
-                        <div data-auth="nav-guest-avatar" class="w-9 h-9 rounded-full bg-base-300 flex items-center justify-center">
-                            <i class="fa-solid fa-user text-base-content/50 text-sm"></i>
-                        </div>
-                        <div data-auth="nav-authed-avatar" class="hidden w-9 h-9 rounded-full ring-2 ring-primary ring-offset-base-100 ring-offset-1 overflow-hidden">
-                            <img src="" alt="Profile" class="w-full h-full object-cover" />
-                        </div>
-                    </div>
-                    <div class="dropdown-panel z-50 mt-2 bg-base-100 border border-base-content/10 rounded-box w-64 right-0 mr-2 md:mr-4 overflow-hidden">
-                        
-                        <!-- authed header -->
-                        <div data-auth="nav-authed-header" class="hidden px-3 pt-3 pb-2 border-b border-base-content/10 cursor-default select-none">
-                            <div class="flex items-center gap-2.5">
-                                <div class="w-8 h-8 rounded-full overflow-hidden shrink-0"><img data-auth="nav-authed-header-avatar" class="w-full h-full object-cover" src="" alt="Profile" /></div>
-                                <div class="flex-1 min-w-0">
-                                    <div class="font-semibold truncate text-sm" data-auth="nav-name"></div>
-                                    <div class="text-xs opacity-60 truncate" data-auth="nav-email"></div>
-                                </div>
-                                <span class="badge badge-sm hidden" data-auth="nav-role"></span>
-                            </div>
-                        </div>
-
-                        <!-- guest header -->
-                        <div data-auth="nav-guest-header" class="px-3 pt-3 pb-2 border-b border-base-content/10 cursor-default select-none">
-                            <div class="flex items-center gap-2.5">
-                                <div class="w-8 h-8 rounded-full bg-base-300 flex items-center justify-center shrink-0">
-                                    <i class="fa-solid fa-user text-base-content/40"></i>
-                                </div>
-                                <div class="flex-1 min-w-0">
-                                    <div class="font-semibold text-sm">Guest</div>
-                                    <div class="text-xs opacity-60">Not signed in</div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Credits display -->
-                        <div class="hidden px-3 py-1.5 border-b border-base-content/10" data-auth="credits-row">
-                            <div class="flex items-center justify-between text-xs">
-                                <span class="flex items-center gap-1.5 opacity-70">
-                                    <span>🪙</span>
-                                    <span data-auth="credits-balance">—</span>
-                                    <span class="opacity-60">credits</span>
-                                </span>
-                                <span class="opacity-40 text-[10px]" data-auth="credits-reset"></span>
-                            </div>
-                        </div>
-
-                        <ul class="menu p-2">
-                            <li data-nav-chrome="theme">
-                                <div class="flex items-center gap-2.5 px-2.5 py-2">
-                                    <i class="fa-solid fa-circle-half-stroke w-4 text-center opacity-60"></i>
-                                    <div id="theme-toggle" class="theme-switcher w-full bg-base-300/70 text-xs font-medium">
-                                        <button data-theme-mode="light" class="theme-switcher-btn rounded-md px-2 py-1.5 cursor-pointer"><i class="fa-solid fa-sun mr-1"></i>Light</button>
-                                        <button data-theme-mode="dark" class="theme-switcher-btn rounded-md px-2 py-1.5 cursor-pointer"><i class="fa-solid fa-moon mr-1"></i>Dark</button>
-                                        <button data-theme-mode="auto" class="theme-switcher-btn rounded-md px-2 py-1.5 cursor-pointer"><i class="fa-solid fa-circle-half-stroke mr-1"></i>Auto</button>
-                                    </div>
-                                </div>
-                            </li>
-                            <li data-auth="login-item">
-                                <a class="flex items-center gap-3" href="https://auth.dhanur.me" data-auth="login-btn"><i class="fa-solid fa-right-to-bracket w-4 text-center"></i><span>Sign In</span></a>
-                            </li>
-                            <li class="hidden" data-auth="account-item">
-                                <a class="flex items-center gap-3" href="https://auth.dhanur.me"><i class="fa-solid fa-gear w-4 text-center"></i><span>Account Settings</span></a>
-                            </li>
-                            <li class="hidden border-t border-base-content/10 mt-1 pt-1" data-auth="logout-item">
-                                <button type="button" class="w-full text-left flex items-center gap-3 text-error/80 hover:text-error" data-auth="logout-btn"><i class="fa-solid fa-right-from-bracket w-4 text-center"></i><span>Sign Out</span></button>
-                            </li>
-                        </ul>
-                    </div>
+          <!-- Account -->
+          <li data-nav-chrome="account" class="ml-1">
+            <div class="relative p-0" data-dropdown="account">
+              <div
+                tabindex="0"
+                role="button"
+                class="btn btn-ghost btn-circle tooltip tooltip-bottom"
+                data-tooltip-label="Account"
+                data-tooltip-position="bottom"
+                aria-label="Account"
+              >
+                <div
+                  data-auth="nav-guest-avatar"
+                  class="w-9 h-9 rounded-full bg-base-300 flex items-center justify-center"
+                >
+                  <i class="fa-solid fa-user text-base-content/50 text-sm"></i>
                 </div>
-            </li>
+                <div
+                  data-auth="nav-authed-avatar"
+                  class="hidden w-9 h-9 rounded-full ring-2 ring-primary ring-offset-base-100 ring-offset-1 overflow-hidden"
+                >
+                  <img
+                    src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw=="
+                    alt="Profile"
+                    class="w-full h-full object-cover"
+                  />
+                </div>
+              </div>
+              <div
+                class="dropdown-panel z-50 mt-2 bg-base-100 border border-base-content/10 rounded-box w-64 right-0 mr-2 md:mr-4 overflow-hidden"
+              >
+                <!-- authed header -->
+                <div
+                  data-auth="nav-authed-header"
+                  class="hidden px-3 pt-3 pb-2 border-b border-base-content/10 cursor-default select-none"
+                >
+                  <div class="flex items-center gap-2.5">
+                    <div class="w-8 h-8 rounded-full overflow-hidden shrink-0">
+                      <img
+                        src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw=="
+                        data-auth="nav-authed-header-avatar"
+                        class="w-full h-full object-cover"
+                        alt="Profile"
+                      />
+                    </div>
+                    <div class="flex-1 min-w-0">
+                      <div
+                        class="font-semibold truncate text-sm"
+                        data-auth="nav-name"
+                      ></div>
+                      <div
+                        class="text-xs opacity-60 truncate"
+                        data-auth="nav-email"
+                      ></div>
+                    </div>
+                    <span
+                      class="badge badge-sm hidden"
+                      data-auth="nav-role"
+                    ></span>
+                  </div>
+                </div>
+
+                <!-- guest header -->
+                <div
+                  data-auth="nav-guest-header"
+                  class="px-3 pt-3 pb-2 border-b border-base-content/10 cursor-default select-none"
+                >
+                  <div class="flex items-center gap-2.5">
+                    <div
+                      class="w-8 h-8 rounded-full bg-base-300 flex items-center justify-center shrink-0"
+                    >
+                      <i class="fa-solid fa-user text-base-content/40"></i>
+                    </div>
+                    <div class="flex-1 min-w-0">
+                      <div class="font-semibold text-sm">Guest</div>
+                      <div class="text-xs opacity-60">Not signed in</div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Credits display -->
+                <div
+                  class="hidden px-3 py-1.5 border-b border-base-content/10"
+                  data-auth="credits-row"
+                >
+                  <div class="flex items-center justify-between text-xs">
+                    <span class="flex items-center gap-1.5 opacity-70">
+                      <span>🪙</span>
+                      <span data-auth="credits-balance">—</span>
+                      <span class="opacity-60">credits</span>
+                    </span>
+                    <span
+                      class="opacity-40 text-[10px]"
+                      data-auth="credits-reset"
+                    ></span>
+                  </div>
+                </div>
+
+                <ul class="menu p-2">
+                  <li data-nav-chrome="theme">
+                    <div class="flex items-center gap-2.5 px-2.5 py-2">
+                      <i
+                        class="fa-solid fa-circle-half-stroke w-4 text-center opacity-60"
+                      ></i>
+                      <div
+                        id="theme-toggle"
+                        class="theme-switcher w-full bg-base-300/70 text-xs font-medium"
+                      >
+                        <button
+                          data-theme-mode="light"
+                          class="theme-switcher-btn rounded-md px-2 py-1.5 cursor-pointer"
+                        >
+                          <i class="fa-solid fa-sun mr-1"></i>Light
+                        </button>
+                        <button
+                          data-theme-mode="dark"
+                          class="theme-switcher-btn rounded-md px-2 py-1.5 cursor-pointer"
+                        >
+                          <i class="fa-solid fa-moon mr-1"></i>Dark
+                        </button>
+                        <button
+                          data-theme-mode="auto"
+                          class="theme-switcher-btn rounded-md px-2 py-1.5 cursor-pointer"
+                        >
+                          <i class="fa-solid fa-circle-half-stroke mr-1"></i
+                          >Auto
+                        </button>
+                      </div>
+                    </div>
+                  </li>
+                  <li data-auth="login-item">
+                    <a
+                      class="flex items-center gap-3"
+                      href="https://auth.dhanur.me"
+                      data-auth="login-btn"
+                      ><i
+                        class="fa-solid fa-right-to-bracket w-4 text-center"
+                      ></i
+                      ><span>Sign In</span></a
+                    >
+                  </li>
+                  <li class="hidden" data-auth="account-item">
+                    <a
+                      class="flex items-center gap-3"
+                      href="https://auth.dhanur.me"
+                      ><i class="fa-solid fa-gear w-4 text-center"></i
+                      ><span>Account Settings</span></a
+                    >
+                  </li>
+                  <li
+                    class="hidden border-t border-base-content/10 mt-1 pt-1"
+                    data-auth="logout-item"
+                  >
+                    <button
+                      type="button"
+                      class="w-full text-left flex items-center gap-3 text-error/80 hover:text-error"
+                      data-auth="logout-btn"
+                    >
+                      <i
+                        class="fa-solid fa-right-from-bracket w-4 text-center"
+                      ></i
+                      ><span>Sign Out</span>
+                    </button>
+                  </li>
+                </ul>
+              </div>
+            </div>
+          </li>
         </ul>
+      </div>
     </div>
-</div>
 
-<!-- Mobile slide-out panel (for subdomains without a drawer) -->
-<div id="shell-mobile-panel" class="fixed inset-0 z-[100] hidden" data-shell-mobile-panel>
-    <div class="absolute inset-0 bg-black/50 transition-opacity" data-shell-mobile-backdrop></div>
-    <div class="absolute top-0 left-0 bottom-0 w-72 bg-base-100 shadow-2xl flex flex-col overflow-y-auto transform -translate-x-full transition-transform duration-300" data-shell-mobile-drawer>
+    <!-- Mobile slide-out panel (for subdomains without a drawer) -->
+    <div
+      id="shell-mobile-panel"
+      class="fixed inset-0 z-[100] hidden"
+      data-shell-mobile-panel
+    >
+      <div
+        class="absolute inset-0 bg-black/50 transition-opacity"
+        data-shell-mobile-backdrop
+      ></div>
+      <div
+        class="absolute top-0 left-0 bottom-0 w-72 bg-base-100 shadow-2xl flex flex-col overflow-y-auto transform -translate-x-full transition-transform duration-300"
+        data-shell-mobile-drawer
+      >
         <!-- Mobile panel header -->
-        <div class="flex items-center justify-between px-4 py-3 border-b border-base-content/10">
-            <a href="https://dhanur.me/" class="font-bold text-lg text-base-content no-underline hover:no-underline">dhanur.me</a>
-            <button type="button" class="btn btn-ghost btn-circle btn-sm" data-shell-mobile-close aria-label="Close menu">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-            </button>
+        <div
+          class="flex items-center justify-between px-4 py-3 border-b border-base-content/10"
+        >
+          <a
+            href="https://dhanur.me/"
+            class="font-bold text-lg text-base-content no-underline hover:no-underline"
+            >dhanur.me</a
+          >
+          <button
+            type="button"
+            class="btn btn-ghost btn-circle btn-sm"
+            data-shell-mobile-close
+            aria-label="Close menu"
+          >
+            <svg
+              class="w-5 h-5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M6 18L18 6M6 6l12 12"
+              ></path>
+            </svg>
+          </button>
         </div>
 
         <!-- Mobile apps grid -->
-        <div class="px-4 py-4 border-b border-base-content/10" data-nav-chrome="apps">
-            <div class="text-xs font-semibold uppercase tracking-wider text-base-content/50 mb-3">Apps</div>
-            <div class="grid grid-cols-3 gap-2" data-apps-grid-mobile>
-                <div class="col-span-3 flex justify-center py-4 opacity-50"><span class="loading loading-spinner loading-sm"></span></div>
+        <div
+          class="px-4 py-4 border-b border-base-content/10"
+          data-nav-chrome="apps"
+        >
+          <div
+            class="text-xs font-semibold uppercase tracking-wider text-base-content/50 mb-3"
+          >
+            Apps
+          </div>
+          <div class="grid grid-cols-3 gap-2" data-app-menu-grid="mobile">
+            <div class="col-span-3 flex justify-center py-4 opacity-50">
+              <span class="loading loading-spinner loading-sm"></span>
             </div>
+          </div>
         </div>
 
         <!-- Mobile account section -->
-        <div class="px-4 py-3 border-b border-base-content/10" data-nav-chrome="account">
-            <div class="flex items-center gap-3 mb-3">
-                <div data-auth="mobile-guest-avatar" class="w-9 h-9 rounded-full bg-base-300 flex items-center justify-center shrink-0">
-                    <i class="fa-solid fa-user text-base-content/50 text-sm"></i>
-                </div>
-                <div data-auth="mobile-authed-avatar" class="hidden w-9 h-9 rounded-full ring-2 ring-primary ring-offset-base-100 ring-offset-1 overflow-hidden shrink-0">
-                    <img src="" alt="Profile" class="w-full h-full object-cover" />
-                </div>
-                <div class="flex-1 min-w-0">
-                    <div class="font-semibold text-sm truncate" data-auth="mobile-name">Guest</div>
-                    <div class="text-xs opacity-60 truncate" data-auth="mobile-email">Not signed in</div>
-                </div>
+        <div
+          class="px-4 py-3 border-b border-base-content/10"
+          data-nav-chrome="account"
+        >
+          <div class="flex items-center gap-3 mb-3">
+            <div
+              data-auth="mobile-guest-avatar"
+              class="w-9 h-9 rounded-full bg-base-300 flex items-center justify-center shrink-0"
+            >
+              <i class="fa-solid fa-user text-base-content/50 text-sm"></i>
             </div>
-            <div class="flex gap-2">
-                <a href="https://auth.dhanur.me" class="btn btn-primary btn-sm flex-1 no-underline hover:no-underline" data-auth="mobile-login-btn">Sign In</a>
-                <button type="button" class="btn btn-ghost btn-sm flex-1 text-error/80 hover:text-error hidden" data-auth="mobile-logout-btn">Sign Out</button>
-                <a href="https://auth.dhanur.me" class="btn btn-ghost btn-sm flex-1 hidden no-underline hover:no-underline" data-auth="mobile-account-btn">Account</a>
+            <div
+              data-auth="mobile-authed-avatar"
+              class="hidden w-9 h-9 rounded-full ring-2 ring-primary ring-offset-base-100 ring-offset-1 overflow-hidden shrink-0"
+            >
+              <img
+                src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw=="
+                alt="Profile"
+                class="w-full h-full object-cover"
+              />
             </div>
+            <div class="flex-1 min-w-0">
+              <div
+                class="font-semibold text-sm truncate"
+                data-auth="mobile-name"
+              >
+                Guest
+              </div>
+              <div class="text-xs opacity-60 truncate" data-auth="mobile-email">
+                Not signed in
+              </div>
+            </div>
+          </div>
+          <div class="flex gap-2">
+            <a
+              href="https://auth.dhanur.me"
+              class="btn btn-primary btn-sm flex-1 no-underline hover:no-underline"
+              data-auth="mobile-login-btn"
+              >Sign In</a
+            >
+            <button
+              type="button"
+              class="btn btn-ghost btn-sm flex-1 text-error/80 hover:text-error hidden"
+              data-auth="mobile-logout-btn"
+            >
+              Sign Out
+            </button>
+            <a
+              href="https://auth.dhanur.me"
+              class="btn btn-ghost btn-sm flex-1 hidden no-underline hover:no-underline"
+              data-auth="mobile-account-btn"
+              >Account</a
+            >
+          </div>
         </div>
 
         <!-- Mobile theme toggle -->
         <div class="px-4 py-3" data-nav-chrome="theme">
-            <div class="flex items-center gap-2.5">
-                <i class="fa-solid fa-circle-half-stroke w-4 text-center opacity-60"></i>
-                <div class="theme-switcher w-full bg-base-300/70 text-xs font-medium">
-                    <button data-theme-mode="light" class="theme-switcher-btn rounded-md px-2 py-1.5 cursor-pointer"><i class="fa-solid fa-sun mr-1"></i>Light</button>
-                    <button data-theme-mode="dark" class="theme-switcher-btn rounded-md px-2 py-1.5 cursor-pointer"><i class="fa-solid fa-moon mr-1"></i>Dark</button>
-                    <button data-theme-mode="auto" class="theme-switcher-btn rounded-md px-2 py-1.5 cursor-pointer"><i class="fa-solid fa-circle-half-stroke mr-1"></i>Auto</button>
-                </div>
+          <div class="flex items-center gap-2.5">
+            <i
+              class="fa-solid fa-circle-half-stroke w-4 text-center opacity-60"
+            ></i>
+            <div
+              class="theme-switcher w-full bg-base-300/70 text-xs font-medium"
+            >
+              <button
+                data-theme-mode="light"
+                class="theme-switcher-btn rounded-md px-2 py-1.5 cursor-pointer"
+              >
+                <i class="fa-solid fa-sun mr-1"></i>Light
+              </button>
+              <button
+                data-theme-mode="dark"
+                class="theme-switcher-btn rounded-md px-2 py-1.5 cursor-pointer"
+              >
+                <i class="fa-solid fa-moon mr-1"></i>Dark
+              </button>
+              <button
+                data-theme-mode="auto"
+                class="theme-switcher-btn rounded-md px-2 py-1.5 cursor-pointer"
+              >
+                <i class="fa-solid fa-circle-half-stroke mr-1"></i>Auto
+              </button>
             </div>
+          </div>
         </div>
+      </div>
     </div>
-</div>
 
-
-
-
-
-
-  <!-- The shell.js will automatically wrap this main element within a .drawer context -->
-  <main class="w-full max-w-7xl mx-auto p-4 lg:p-8">
-      
-    <!-- Header -->
-    <h1 class="text-4xl lg:text-5xl font-extrabold tracking-tight mb-6 mt-14">Task Board</h1>
-    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
-        <p id="mode-copy" class="text-lg text-base-content/85">Drag cards between columns to change status.</p>
+    <!-- The shell.js will automatically wrap this main element within a .drawer context -->
+    <main class="w-full max-w-7xl mx-auto p-4 lg:p-8">
+      <!-- Header -->
+      <h1 class="text-4xl lg:text-5xl font-extrabold tracking-tight mb-6 mt-14">
+        Task Board
+      </h1>
+      <div
+        class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4"
+      >
+        <p id="mode-copy" class="text-lg text-base-content/85">
+          Drag cards between columns to change status.
+        </p>
         <div class="flex gap-2 shrink-0">
-            <span id="mode-chip" class="badge badge-outline border-base-content/20 text-[10px] font-bold tracking-wider">GUEST</span>
-            <a href="https://tasks.dhanur.me/swagger-ui/index.html" class="btn btn-ghost gap-1.5 text-[11px] h-8 px-3">
-              <i class="fa-solid fa-code text-base-content/60"></i> API
-            </a>
-            <button onclick="openCreateModal()" class="btn btn-primary gap-1.5 text-[11px] h-8 px-3">
-              <i class="fa-solid fa-plus text-base-content/60"></i> New Task
-            </button>
-        </div>
-    </div>
-
-    <!-- Stats strip -->
-    <div class="flex flex-wrap items-center gap-4 sm:gap-6 mb-8 px-1">
-      <div class="flex items-baseline gap-2">
-        <span class="text-xl font-bold text-base-content" id="stat-total">0</span>
-        <span class="text-xs text-base-content/40 uppercase tracking-widest font-semibold">total</span>
-      </div>
-      <div class="w-px h-5 bg-base-content/10 hidden sm:block"></div>
-      <div class="flex items-center gap-2">
-        <div class="w-2 h-2 rounded-full bg-base-content/20"></div>
-        <span class="text-sm font-semibold text-base-content" id="stat-todo">0</span>
-        <span class="text-xs text-base-content/50 uppercase tracking-widest font-semibold hidden sm:inline">to do</span>
-      </div>
-      <div class="flex items-center gap-2">
-        <div class="w-2 h-2 rounded-full bg-base-content/50"></div>
-        <span class="text-sm font-semibold text-base-content" id="stat-progress">0</span>
-        <span class="text-xs text-base-content/50 uppercase tracking-widest font-semibold hidden sm:inline">in progress</span>
-      </div>
-      <div class="flex items-center gap-2">
-        <div class="w-2 h-2 rounded-full bg-base-content"></div>
-        <span class="text-sm font-semibold text-base-content" id="stat-done">0</span>
-        <span class="text-xs text-base-content/50 uppercase tracking-widest font-semibold hidden sm:inline">done</span>
-      </div>
-    </div>
-
-    <!-- Loading -->
-    <div id="loading-state" class="text-center py-24">
-      <span class="loading loading-spinner loading-lg opacity-30"></span>
-    </div>
-
-    <!-- Kanban Board -->
-    <div id="kanban-board" class="grid grid-cols-1 md:grid-cols-3 gap-5" style="display:none">
-
-      <!-- TODO Column -->
-      <div class="kanban-col" data-status="TODO"
-           ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event)">
-        <div class="flex items-center justify-between mb-2 px-1">
-          <div class="flex items-center gap-2">
-            <div class="w-2.5 h-2.5 rounded-full bg-base-content/20"></div>
-            <span class="font-semibold text-xs uppercase tracking-wider text-base-content/60">To Do</span>
-          </div>
-          <span class="text-xs font-mono text-base-content/40" id="count-todo">0</span>
-        </div>
-        <div class="col-header-bar bg-base-content/10"></div>
-        <div class="col-body flex flex-col gap-2" id="col-TODO"></div>
-      </div>
-
-      <!-- IN_PROGRESS Column -->
-      <div class="kanban-col" data-status="IN_PROGRESS"
-           ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event)">
-        <div class="flex items-center justify-between mb-2 px-1">
-          <div class="flex items-center gap-2">
-            <div class="w-2.5 h-2.5 rounded-full bg-base-content/50"></div>
-            <span class="font-semibold text-xs uppercase tracking-wider text-base-content/60">In Progress</span>
-          </div>
-          <span class="text-xs font-mono text-base-content/40" id="count-progress">0</span>
-        </div>
-        <div class="col-header-bar bg-base-content/30"></div>
-        <div class="col-body flex flex-col gap-2" id="col-IN_PROGRESS"></div>
-      </div>
-
-      <!-- DONE Column -->
-      <div class="kanban-col" data-status="DONE"
-           ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event)">
-        <div class="flex items-center justify-between mb-2 px-1">
-          <div class="flex items-center gap-2">
-            <div class="w-2.5 h-2.5 rounded-full bg-base-content"></div>
-            <span class="font-semibold text-xs uppercase tracking-wider text-base-content/60">Done</span>
-          </div>
-          <span class="text-xs font-mono text-base-content/40" id="count-done">0</span>
-        </div>
-        <div class="col-header-bar bg-base-content/60"></div>
-        <div class="col-body flex flex-col gap-2" id="col-DONE"></div>
-      </div>
-    </div>
-
-    <!-- Empty State -->
-    <div id="empty-state" class="text-center py-32 flex flex-col items-center justify-center" style="display:none">
-      <div class="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-base-200 shadow-sm border border-base-content/10 mb-6">
-        <i class="fa-solid fa-clipboard-list text-3xl text-base-content/30 mt-1"></i>
-      </div>
-      <p class="text-lg font-semibold text-base-content/70 mb-2">No tasks yet</p>
-      <p class="text-sm text-base-content/40 mb-8 max-w-sm mx-auto">Create your first task to populate your board and start tracking progress.</p>
-      <button onclick="openCreateModal()" class="btn btn-primary h-10 px-5 text-sm gap-2">
-        <i class="fa-solid fa-plus"></i> Create Task
-      </button>
-    </div>
-  </main>
-
-  <!-- Create/Edit Modal -->
-  <dialog id="task-modal" class="modal">
-    <div class="modal-box bg-base-200">
-      <button type="button" class="btn btn-sm btn-circle btn-ghost absolute right-3 top-3" onclick="closeModal()">
-        <i class="fa-solid fa-xmark text-base-content/60"></i>
-      </button>
-      <h3 id="modal-title" class="text-lg font-bold mb-0.5">New Task</h3>
-      <p class="text-xs text-base-content/60 mb-5" id="modal-subtitle">Add something to your board</p>
-      <form id="task-form" onsubmit="handleSubmit(event)">
-        <input type="hidden" id="edit-id">
-        <div class="form-control mb-4">
-          <label class="label pb-1"><span class="label-text text-xs font-semibold uppercase tracking-wider text-base-content/50">Title</span></label>
-          <input type="text" id="task-title" placeholder="e.g. Design landing page" class="input input-bordered bg-base-100/50 focus:bg-base-100 w-full" required minlength="3" maxlength="100">
-        </div>
-        <div class="form-control mb-4">
-          <label class="label pb-1"><span class="label-text text-xs font-semibold uppercase tracking-wider text-base-content/50">Description</span></label>
-          <textarea id="task-desc" placeholder="Add some details..." class="textarea textarea-bordered bg-base-100/50 focus:bg-base-100 w-full" rows="3" maxlength="500"></textarea>
-          <label class="label pt-1"><span class="label-text-alt text-[10px] text-base-content/40" id="char-count">0 / 500</span></label>
-        </div>
-        <div id="modal-error" class="hidden p-3 rounded bg-error/10 border border-error/20 text-error text-sm mb-4">
-          <i class="fa-solid fa-circle-exclamation mr-1.5"></i>
-          <span id="modal-error-text"></span>
-        </div>
-        <div class="modal-action">
-          <button type="button" class="btn btn-ghost text-xs h-8 px-3" onclick="closeModal()">Cancel</button>
-          <button type="submit" class="btn btn-primary text-xs h-8 px-3 gap-1.5" id="submit-btn">
-            <i class="fa-solid fa-plus"></i> Create
+          <span
+            id="mode-chip"
+            class="badge badge-outline border-base-content/20 text-[10px] font-bold tracking-wider"
+            >GUEST</span
+          >
+          <a
+            href="https://tasks.dhanur.me/swagger-ui/index.html"
+            class="btn btn-ghost gap-1.5 text-[11px] h-8 px-3"
+          >
+            <i class="fa-solid fa-code text-base-content/60"></i> API
+          </a>
+          <button
+            onclick="openCreateModal()"
+            class="btn btn-primary gap-1.5 text-[11px] h-8 px-3"
+          >
+            <i class="fa-solid fa-plus text-base-content/60"></i> New Task
           </button>
         </div>
+      </div>
+
+      <!-- Stats strip -->
+      <div class="flex flex-wrap items-center gap-4 sm:gap-6 mb-8 px-1">
+        <div class="flex items-baseline gap-2">
+          <span class="text-xl font-bold text-base-content" id="stat-total"
+            >0</span
+          >
+          <span
+            class="text-xs text-base-content/40 uppercase tracking-widest font-semibold"
+            >total</span
+          >
+        </div>
+        <div class="w-px h-5 bg-base-content/10 hidden sm:block"></div>
+        <div class="flex items-center gap-2">
+          <div class="w-2 h-2 rounded-full bg-base-content/20"></div>
+          <span class="text-sm font-semibold text-base-content" id="stat-todo"
+            >0</span
+          >
+          <span
+            class="text-xs text-base-content/50 uppercase tracking-widest font-semibold hidden sm:inline"
+            >to do</span
+          >
+        </div>
+        <div class="flex items-center gap-2">
+          <div class="w-2 h-2 rounded-full bg-base-content/50"></div>
+          <span
+            class="text-sm font-semibold text-base-content"
+            id="stat-progress"
+            >0</span
+          >
+          <span
+            class="text-xs text-base-content/50 uppercase tracking-widest font-semibold hidden sm:inline"
+            >in progress</span
+          >
+        </div>
+        <div class="flex items-center gap-2">
+          <div class="w-2 h-2 rounded-full bg-base-content"></div>
+          <span class="text-sm font-semibold text-base-content" id="stat-done"
+            >0</span
+          >
+          <span
+            class="text-xs text-base-content/50 uppercase tracking-widest font-semibold hidden sm:inline"
+            >done</span
+          >
+        </div>
+      </div>
+
+      <!-- Loading -->
+      <div id="loading-state" class="text-center py-24">
+        <span class="loading loading-spinner loading-lg opacity-30"></span>
+      </div>
+
+      <!-- Kanban Board -->
+      <div
+        id="kanban-board"
+        class="grid grid-cols-1 md:grid-cols-3 gap-5"
+        style="display: none"
+      >
+        <!-- TODO Column -->
+        <div
+          class="kanban-col"
+          data-status="TODO"
+          ondragover="handleDragOver(event)"
+          ondragleave="handleDragLeave(event)"
+          ondrop="handleDrop(event)"
+        >
+          <div class="flex items-center justify-between mb-2 px-1">
+            <div class="flex items-center gap-2">
+              <div class="w-2.5 h-2.5 rounded-full bg-base-content/20"></div>
+              <span
+                class="font-semibold text-xs uppercase tracking-wider text-base-content/60"
+                >To Do</span
+              >
+            </div>
+            <span class="text-xs font-mono text-base-content/40" id="count-todo"
+              >0</span
+            >
+          </div>
+          <div class="col-header-bar bg-base-content/10"></div>
+          <div class="col-body flex flex-col gap-2" id="col-TODO"></div>
+        </div>
+
+        <!-- IN_PROGRESS Column -->
+        <div
+          class="kanban-col"
+          data-status="IN_PROGRESS"
+          ondragover="handleDragOver(event)"
+          ondragleave="handleDragLeave(event)"
+          ondrop="handleDrop(event)"
+        >
+          <div class="flex items-center justify-between mb-2 px-1">
+            <div class="flex items-center gap-2">
+              <div class="w-2.5 h-2.5 rounded-full bg-base-content/50"></div>
+              <span
+                class="font-semibold text-xs uppercase tracking-wider text-base-content/60"
+                >In Progress</span
+              >
+            </div>
+            <span
+              class="text-xs font-mono text-base-content/40"
+              id="count-progress"
+              >0</span
+            >
+          </div>
+          <div class="col-header-bar bg-base-content/30"></div>
+          <div class="col-body flex flex-col gap-2" id="col-IN_PROGRESS"></div>
+        </div>
+
+        <!-- DONE Column -->
+        <div
+          class="kanban-col"
+          data-status="DONE"
+          ondragover="handleDragOver(event)"
+          ondragleave="handleDragLeave(event)"
+          ondrop="handleDrop(event)"
+        >
+          <div class="flex items-center justify-between mb-2 px-1">
+            <div class="flex items-center gap-2">
+              <div class="w-2.5 h-2.5 rounded-full bg-base-content"></div>
+              <span
+                class="font-semibold text-xs uppercase tracking-wider text-base-content/60"
+                >Done</span
+              >
+            </div>
+            <span class="text-xs font-mono text-base-content/40" id="count-done"
+              >0</span
+            >
+          </div>
+          <div class="col-header-bar bg-base-content/60"></div>
+          <div class="col-body flex flex-col gap-2" id="col-DONE"></div>
+        </div>
+      </div>
+
+      <!-- Empty State -->
+      <div
+        id="empty-state"
+        class="text-center py-32 flex flex-col items-center justify-center"
+        style="display: none"
+      >
+        <div
+          class="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-base-200 shadow-sm border border-base-content/10 mb-6"
+        >
+          <i
+            class="fa-solid fa-clipboard-list text-3xl text-base-content/30 mt-1"
+          ></i>
+        </div>
+        <p class="text-lg font-semibold text-base-content/70 mb-2">
+          No tasks yet
+        </p>
+        <p class="text-sm text-base-content/40 mb-8 max-w-sm mx-auto">
+          Create your first task to populate your board and start tracking
+          progress.
+        </p>
+        <button
+          onclick="openCreateModal()"
+          class="btn btn-primary h-10 px-5 text-sm gap-2"
+        >
+          <i class="fa-solid fa-plus"></i> Create Task
+        </button>
+      </div>
+    </main>
+
+    <!-- Create/Edit Modal -->
+    <dialog id="task-modal" class="modal">
+      <div class="modal-box bg-base-200">
+        <button
+          type="button"
+          class="btn btn-sm btn-circle btn-ghost absolute right-3 top-3"
+          onclick="closeModal()"
+        >
+          <i class="fa-solid fa-xmark text-base-content/60"></i>
+        </button>
+        <h3 id="modal-title" class="text-lg font-bold mb-0.5">New Task</h3>
+        <p class="text-xs text-base-content/60 mb-5" id="modal-subtitle">
+          Add something to your board
+        </p>
+        <form id="task-form" onsubmit="handleSubmit(event)">
+          <input type="hidden" id="edit-id" />
+          <div class="form-control mb-4">
+            <label class="label pb-1"
+              ><span
+                class="label-text text-xs font-semibold uppercase tracking-wider text-base-content/50"
+                >Title</span
+              ></label
+            >
+            <input
+              type="text"
+              id="task-title"
+              placeholder="e.g. Design landing page"
+              class="input input-bordered bg-base-100/50 focus:bg-base-100 w-full"
+              required
+              minlength="3"
+              maxlength="100"
+            />
+          </div>
+          <div class="form-control mb-4">
+            <label class="label pb-1"
+              ><span
+                class="label-text text-xs font-semibold uppercase tracking-wider text-base-content/50"
+                >Description</span
+              ></label
+            >
+            <textarea
+              id="task-desc"
+              placeholder="Add some details..."
+              class="textarea textarea-bordered bg-base-100/50 focus:bg-base-100 w-full"
+              rows="3"
+              maxlength="500"
+            ></textarea>
+            <label class="label pt-1"
+              ><span
+                class="label-text-alt text-[10px] text-base-content/40"
+                id="char-count"
+                >0 / 500</span
+              ></label
+            >
+          </div>
+          <div
+            id="modal-error"
+            class="hidden p-3 rounded bg-error/10 border border-error/20 text-error text-sm mb-4"
+          >
+            <i class="fa-solid fa-circle-exclamation mr-1.5"></i>
+            <span id="modal-error-text"></span>
+          </div>
+          <div class="modal-action">
+            <button
+              type="button"
+              class="btn btn-ghost text-xs h-8 px-3"
+              onclick="closeModal()"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              class="btn btn-primary text-xs h-8 px-3 gap-1.5"
+              id="submit-btn"
+            >
+              <i class="fa-solid fa-plus"></i> Create
+            </button>
+          </div>
+        </form>
+      </div>
+      <form method="dialog" class="modal-backdrop bg-neutral/80">
+        <button>close</button>
       </form>
-    </div>
-    <form method="dialog" class="modal-backdrop bg-neutral/80"><button>close</button></form>
-  </dialog>
+    </dialog>
 
-  <!-- Delete Confirm Modal -->
-  <dialog id="delete-modal" class="modal">
-    <div class="modal-box bg-base-200 max-w-sm">
-      <h3 class="text-base font-bold mb-2">Delete this task?</h3>
-      <p class="text-sm text-base-content/60">This can't be undone.</p>
-      <div class="modal-action">
-        <button class="btn btn-ghost text-xs h-8 px-3" onclick="document.getElementById('delete-modal').close()">Cancel</button>
-        <button class="btn bg-error/10 hover:bg-error/20 text-error border-0 text-xs h-8 px-3 gap-1.5" id="confirm-delete-btn" onclick="confirmDelete()">
-          <i class="fa-solid fa-trash"></i> Delete
+    <!-- Delete Confirm Modal -->
+    <dialog id="delete-modal" class="modal">
+      <div class="modal-box bg-base-200 max-w-sm">
+        <h3 class="text-base font-bold mb-2">Delete this task?</h3>
+        <p class="text-sm text-base-content/60">This can't be undone.</p>
+        <div class="modal-action">
+          <button
+            class="btn btn-ghost text-xs h-8 px-3"
+            onclick="document.getElementById('delete-modal').close()"
+          >
+            Cancel
+          </button>
+          <button
+            class="btn bg-error/10 hover:bg-error/20 text-error border-0 text-xs h-8 px-3 gap-1.5"
+            id="confirm-delete-btn"
+            onclick="confirmDelete()"
+          >
+            <i class="fa-solid fa-trash"></i> Delete
+          </button>
+        </div>
+      </div>
+      <form method="dialog" class="modal-backdrop bg-neutral/80">
+        <button>close</button>
+      </form>
+    </dialog>
+
+    <!-- View Task Modal -->
+    <dialog id="view-modal" class="modal">
+      <div class="modal-box bg-base-200">
+        <button
+          type="button"
+          class="btn btn-sm btn-circle btn-ghost absolute right-3 top-3"
+          onclick="document.getElementById('view-modal').close()"
+        >
+          <i class="fa-solid fa-xmark text-base-content/60"></i>
         </button>
+        <div id="view-badge" class="mb-3"></div>
+        <h3 id="view-title" class="text-xl font-bold mb-3"></h3>
+        <p
+          id="view-desc"
+          class="text-base text-base-content/85 mb-6 whitespace-pre-wrap leading-relaxed py-2"
+        ></p>
+
+        <div class="w-full h-px bg-base-content/10 my-4"></div>
+        <div class="flex gap-6 text-[11px] text-base-content/40">
+          <span
+            ><i class="fa-regular fa-clock mr-1"></i>Created
+            <span id="view-created"></span
+          ></span>
+          <span
+            ><i class="fa-solid fa-arrow-rotate-right mr-1"></i>Updated
+            <span id="view-updated"></span
+          ></span>
+        </div>
+        <div class="modal-action mt-6">
+          <button
+            class="btn btn-ghost text-xs h-8 px-3"
+            onclick="document.getElementById('view-modal').close()"
+          >
+            Close
+          </button>
+          <button
+            class="btn btn-primary text-xs h-8 px-3 gap-1.5"
+            id="view-edit-btn"
+          >
+            <i class="fa-solid fa-pen text-xs"></i> Edit
+          </button>
+        </div>
       </div>
-    </div>
-    <form method="dialog" class="modal-backdrop bg-neutral/80"><button>close</button></form>
-  </dialog>
+      <form method="dialog" class="modal-backdrop bg-neutral/80">
+        <button>close</button>
+      </form>
+    </dialog>
 
-  <!-- View Task Modal -->
-  <dialog id="view-modal" class="modal">
-    <div class="modal-box bg-base-200">
-      <button type="button" class="btn btn-sm btn-circle btn-ghost absolute right-3 top-3" onclick="document.getElementById('view-modal').close()">
-        <i class="fa-solid fa-xmark text-base-content/60"></i>
-      </button>
-      <div id="view-badge" class="mb-3"></div>
-      <h3 id="view-title" class="text-xl font-bold mb-3"></h3>
-      <p id="view-desc" class="text-base text-base-content/85 mb-6 whitespace-pre-wrap leading-relaxed py-2"></p>
-      
-      <div class="w-full h-px bg-base-content/10 my-4"></div>
-      <div class="flex gap-6 text-[11px] text-base-content/40">
-        <span><i class="fa-regular fa-clock mr-1"></i>Created <span id="view-created"></span></span>
-        <span><i class="fa-solid fa-arrow-rotate-right mr-1"></i>Updated <span id="view-updated"></span></span>
-      </div>
-      <div class="modal-action mt-6">
-        <button class="btn btn-ghost text-xs h-8 px-3" onclick="document.getElementById('view-modal').close()">Close</button>
-        <button class="btn btn-primary text-xs h-8 px-3 gap-1.5" id="view-edit-btn">
-          <i class="fa-solid fa-pen text-xs"></i> Edit
-        </button>
-      </div>
-    </div>
-    <form method="dialog" class="modal-backdrop bg-neutral/80"><button>close</button></form>
-  </dialog>
+    <script>
+      const API = "/api/v1/tasks";
+      const GUEST_STORAGE_KEY = "tasks_guest_v1";
+      const GUEST_MAX_TASKS = 25;
 
-  <script>
-    const API = '/api/v1/tasks';
-    const GUEST_STORAGE_KEY = 'tasks_guest_v1';
-    const GUEST_MAX_TASKS = 25;
+      let allTasks = [];
+      let deleteTargetId = null;
+      let draggedId = null;
+      let runtimeMode = "guest";
+      let guestIdSeq = -1;
 
-    let allTasks = [];
-    let deleteTargetId = null;
-    let draggedId = null;
-    let runtimeMode = 'guest';
-    let guestIdSeq = -1;
+      function updateModeUI(status = null) {
+        const chip = document.getElementById("mode-chip");
+        const copy = document.getElementById("mode-copy");
+        if (!chip || !copy) return;
 
-    function updateModeUI(status = null) {
-      const chip = document.getElementById('mode-chip');
-      const copy = document.getElementById('mode-copy');
-      if (!chip || !copy) return;
-
-      if (runtimeMode === 'remote') {
-        chip.textContent = status?.role === 'admin' ? 'ADMIN' : 'USER';
-        chip.className = status?.role === 'admin'
-          ? 'badge badge-error text-[10px] font-bold tracking-wider'
-          : 'badge badge-success text-[10px] font-bold tracking-wider';
-        copy.textContent = 'Synced workspace. Create and update tasks with credit-metered operations.';
-        return;
-      }
-
-      chip.textContent = 'GUEST';
-      chip.className = 'badge badge-outline border-base-content/20 text-[10px] font-bold tracking-wider';
-      copy.textContent = 'Guest sandbox mode: tasks stay in this browser. Sign in to sync and migrate.';
-    }
-
-    function loadGuestTasks() {
-      try {
-        const raw = localStorage.getItem(GUEST_STORAGE_KEY);
-        if (!raw) return [];
-        const parsed = JSON.parse(raw);
-        return Array.isArray(parsed) ? parsed : [];
-      } catch {
-        return [];
-      }
-    }
-
-    function saveGuestTasks(tasks) {
-      localStorage.setItem(GUEST_STORAGE_KEY, JSON.stringify(tasks));
-      const minId = tasks.reduce((min, t) => Math.min(min, Number(t.id) || 0), 0);
-      guestIdSeq = minId <= -1 ? minId - 1 : -1;
-    }
-
-    function ensureGuestLimit() {
-      if (allTasks.length >= GUEST_MAX_TASKS) {
-        throw new Error(`Guest limit reached (${GUEST_MAX_TASKS} tasks). Sign in to unlock synced storage.`);
-      }
-    }
-
-    async function readErrorResponse(res, fallback) {
-      try {
-        const data = await res.json();
-        return data.error || data.message || fallback;
-      } catch {
-        return fallback;
-      }
-    }
-
-    // --- API ---
-
-    async function fetchRemoteTasks() {
-      try {
-        let page = 0, all = [];
-        while (true) {
-          const res = await fetch(`${API}?page=${page}&size=100&sort=createdAt,desc`);
-          if (!res.ok) throw new Error('Failed to fetch');
-          const data = await res.json();
-          all = all.concat(data.content);
-          if (data.last) break;
-          page++;
+        if (runtimeMode === "remote") {
+          chip.textContent = status?.role === "admin" ? "ADMIN" : "USER";
+          chip.className =
+            status?.role === "admin"
+              ? "badge badge-error text-[10px] font-bold tracking-wider"
+              : "badge badge-success text-[10px] font-bold tracking-wider";
+          copy.textContent =
+            "Synced workspace. Create and update tasks with credit-metered operations.";
+          return;
         }
-        allTasks = all;
+
+        chip.textContent = "GUEST";
+        chip.className =
+          "badge badge-outline border-base-content/20 text-[10px] font-bold tracking-wider";
+        copy.textContent =
+          "Guest sandbox mode: tasks stay in this browser. Sign in to sync and migrate.";
+      }
+
+      function loadGuestTasks() {
+        try {
+          const raw = localStorage.getItem(GUEST_STORAGE_KEY);
+          if (!raw) return [];
+          const parsed = JSON.parse(raw);
+          return Array.isArray(parsed) ? parsed : [];
+        } catch {
+          return [];
+        }
+      }
+
+      function saveGuestTasks(tasks) {
+        localStorage.setItem(GUEST_STORAGE_KEY, JSON.stringify(tasks));
+        const minId = tasks.reduce(
+          (min, t) => Math.min(min, Number(t.id) || 0),
+          0,
+        );
+        guestIdSeq = minId <= -1 ? minId - 1 : -1;
+      }
+
+      function ensureGuestLimit() {
+        if (allTasks.length >= GUEST_MAX_TASKS) {
+          throw new Error(
+            `Guest limit reached (${GUEST_MAX_TASKS} tasks). Sign in to unlock synced storage.`,
+          );
+        }
+      }
+
+      async function readErrorResponse(res, fallback) {
+        try {
+          const data = await res.json();
+          return data.error || data.message || fallback;
+        } catch {
+          return fallback;
+        }
+      }
+
+      // --- API ---
+
+      async function fetchRemoteTasks() {
+        try {
+          let page = 0,
+            all = [];
+          while (true) {
+            const res = await fetch(
+              `${API}?page=${page}&size=100&sort=createdAt,desc`,
+            );
+            if (!res.ok) throw new Error("Failed to fetch");
+            const data = await res.json();
+            all = all.concat(data.content);
+            if (data.last) break;
+            page++;
+          }
+          allTasks = all;
+          render();
+        } catch (e) {
+          document.getElementById("kanban-board").style.display = "grid";
+          document.getElementById("loading-state").classList.add("hidden");
+          document.getElementById("col-TODO").innerHTML =
+            '<div class="p-3 bg-error/10 border border-error/20 text-error rounded text-sm"><i class="fa-solid fa-triangle-exclamation mr-1.5"></i> Could not load tasks</div>';
+        }
+      }
+
+      function fetchGuestTasks() {
+        allTasks = loadGuestTasks();
         render();
-      } catch (e) {
-        document.getElementById('kanban-board').style.display = 'grid';
-        document.getElementById('loading-state').classList.add('hidden');
-        document.getElementById('col-TODO').innerHTML =
-          '<div class="p-3 bg-error/10 border border-error/20 text-error rounded text-sm"><i class="fa-solid fa-triangle-exclamation mr-1.5"></i> Could not load tasks</div>';
       }
-    }
 
-    function fetchGuestTasks() {
-      allTasks = loadGuestTasks();
-      render();
-    }
-
-    async function fetchAllTasks() {
-      if (runtimeMode === 'remote') {
-        return fetchRemoteTasks();
+      async function fetchAllTasks() {
+        if (runtimeMode === "remote") {
+          return fetchRemoteTasks();
+        }
+        return fetchGuestTasks();
       }
-      return fetchGuestTasks();
-    }
 
-    async function createTaskAPI(title, description) {
-      const res = await fetch(API, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title, description: description || null })
-      });
-      if (!res.ok) {
-        throw new Error(await readErrorResponse(res, 'Failed to create task'));
+      async function createTaskAPI(title, description) {
+        const res = await fetch(API, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ title, description: description || null }),
+        });
+        if (!res.ok) {
+          throw new Error(
+            await readErrorResponse(res, "Failed to create task"),
+          );
+        }
+        return res.json();
       }
-      return res.json();
-    }
 
-    async function updateTaskAPI(id, title, description) {
-      const res = await fetch(`${API}/${id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title, description: description || null })
-      });
-      if (!res.ok) {
-        throw new Error(await readErrorResponse(res, 'Failed to update task'));
+      async function updateTaskAPI(id, title, description) {
+        const res = await fetch(`${API}/${id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ title, description: description || null }),
+        });
+        if (!res.ok) {
+          throw new Error(
+            await readErrorResponse(res, "Failed to update task"),
+          );
+        }
+        return res.json();
       }
-      return res.json();
-    }
 
-    async function updateStatusAPI(id, status) {
-      const res = await fetch(`${API}/${id}/status?status=${status}`, { method: 'PATCH' });
-      if (!res.ok) throw new Error(await readErrorResponse(res, 'Failed to update status'));
-      return res.json();
-    }
+      async function updateStatusAPI(id, status) {
+        const res = await fetch(`${API}/${id}/status?status=${status}`, {
+          method: "PATCH",
+        });
+        if (!res.ok)
+          throw new Error(
+            await readErrorResponse(res, "Failed to update status"),
+          );
+        return res.json();
+      }
 
-    async function deleteTaskAPI(id) {
-      const res = await fetch(`${API}/${id}`, { method: 'DELETE' });
-      if (!res.ok) throw new Error(await readErrorResponse(res, 'Failed to delete task'));
-    }
+      async function deleteTaskAPI(id) {
+        const res = await fetch(`${API}/${id}`, { method: "DELETE" });
+        if (!res.ok)
+          throw new Error(
+            await readErrorResponse(res, "Failed to delete task"),
+          );
+      }
 
-    function createGuestTask(title, description) {
-      ensureGuestLimit();
-      const now = new Date().toISOString();
-      const task = {
-        id: guestIdSeq--,
-        title,
-        description: description || null,
-        status: 'TODO',
-        createdAt: now,
-        updatedAt: now,
-      };
-      const next = [task, ...allTasks];
-      allTasks = next;
-      saveGuestTasks(next);
-      return task;
-    }
-
-    function updateGuestTask(id, title, description) {
-      const targetId = Number(id);
-      const next = allTasks.map((task) => {
-        if (Number(task.id) !== targetId) return task;
-        return {
-          ...task,
+      function createGuestTask(title, description) {
+        ensureGuestLimit();
+        const now = new Date().toISOString();
+        const task = {
+          id: guestIdSeq--,
           title,
           description: description || null,
-          updatedAt: new Date().toISOString(),
+          status: "TODO",
+          createdAt: now,
+          updatedAt: now,
         };
-      });
-      allTasks = next;
-      saveGuestTasks(next);
-    }
+        const next = [task, ...allTasks];
+        allTasks = next;
+        saveGuestTasks(next);
+        return task;
+      }
 
-    function updateGuestStatus(id, status) {
-      const targetId = Number(id);
-      const next = allTasks.map((task) => {
-        if (Number(task.id) !== targetId) return task;
-        return {
-          ...task,
-          status,
-          updatedAt: new Date().toISOString(),
-        };
-      });
-      allTasks = next;
-      saveGuestTasks(next);
-    }
+      function updateGuestTask(id, title, description) {
+        const targetId = Number(id);
+        const next = allTasks.map((task) => {
+          if (Number(task.id) !== targetId) return task;
+          return {
+            ...task,
+            title,
+            description: description || null,
+            updatedAt: new Date().toISOString(),
+          };
+        });
+        allTasks = next;
+        saveGuestTasks(next);
+      }
 
-    function deleteGuestTask(id) {
-      const targetId = Number(id);
-      const next = allTasks.filter((task) => Number(task.id) !== targetId);
-      allTasks = next;
-      saveGuestTasks(next);
-    }
+      function updateGuestStatus(id, status) {
+        const targetId = Number(id);
+        const next = allTasks.map((task) => {
+          if (Number(task.id) !== targetId) return task;
+          return {
+            ...task,
+            status,
+            updatedAt: new Date().toISOString(),
+          };
+        });
+        allTasks = next;
+        saveGuestTasks(next);
+      }
 
-    async function migrateGuestTasksToRemote() {
-      const guestTasks = loadGuestTasks();
-      if (!guestTasks.length) return;
+      function deleteGuestTask(id) {
+        const targetId = Number(id);
+        const next = allTasks.filter((task) => Number(task.id) !== targetId);
+        allTasks = next;
+        saveGuestTasks(next);
+      }
 
-      const remaining = [];
-      for (const task of guestTasks) {
-        try {
-          await createTaskAPI(task.title, task.description || '');
-        } catch {
-          remaining.push(task);
+      async function migrateGuestTasksToRemote() {
+        const guestTasks = loadGuestTasks();
+        if (!guestTasks.length) return;
+
+        const remaining = [];
+        for (const task of guestTasks) {
+          try {
+            await createTaskAPI(task.title, task.description || "");
+          } catch {
+            remaining.push(task);
+          }
         }
+
+        if (remaining.length === 0) {
+          localStorage.removeItem(GUEST_STORAGE_KEY);
+          return;
+        }
+
+        saveGuestTasks(remaining);
       }
 
-      if (remaining.length === 0) {
-        localStorage.removeItem(GUEST_STORAGE_KEY);
-        return;
+      async function createTask(title, description) {
+        if (runtimeMode === "remote") {
+          return createTaskAPI(title, description);
+        }
+        return createGuestTask(title, description);
       }
 
-      saveGuestTasks(remaining);
-    }
-
-    async function createTask(title, description) {
-      if (runtimeMode === 'remote') {
-        return createTaskAPI(title, description);
-      }
-      return createGuestTask(title, description);
-    }
-
-    async function updateTask(id, title, description) {
-      if (runtimeMode === 'remote') {
-        return updateTaskAPI(id, title, description);
-      }
-      return updateGuestTask(id, title, description);
-    }
-
-    async function updateTaskStatus(id, status) {
-      if (runtimeMode === 'remote') {
-        return updateStatusAPI(id, status);
-      }
-      return updateGuestStatus(id, status);
-    }
-
-    async function deleteTask(id) {
-      if (runtimeMode === 'remote') {
-        return deleteTaskAPI(id);
-      }
-      return deleteGuestTask(id);
-    }
-
-    // --- Rendering ---
-
-    function render() {
-      document.getElementById('loading-state').classList.add('hidden');
-
-      const todo = allTasks.filter(t => t.status === 'TODO');
-      const progress = allTasks.filter(t => t.status === 'IN_PROGRESS');
-      const done = allTasks.filter(t => t.status === 'DONE');
-
-      document.getElementById('stat-total').textContent = allTasks.length;
-      document.getElementById('stat-todo').textContent = todo.length;
-      document.getElementById('stat-progress').textContent = progress.length;
-      document.getElementById('stat-done').textContent = done.length;
-      document.getElementById('count-todo').textContent = todo.length;
-      document.getElementById('count-progress').textContent = progress.length;
-      document.getElementById('count-done').textContent = done.length;
-
-      if (allTasks.length === 0) {
-        document.getElementById('kanban-board').style.display = 'none';
-        document.getElementById('empty-state').style.display = 'flex';
-        return;
+      async function updateTask(id, title, description) {
+        if (runtimeMode === "remote") {
+          return updateTaskAPI(id, title, description);
+        }
+        return updateGuestTask(id, title, description);
       }
 
-      document.getElementById('kanban-board').style.display = 'grid';
-      document.getElementById('empty-state').style.display = 'none';
+      async function updateTaskStatus(id, status) {
+        if (runtimeMode === "remote") {
+          return updateStatusAPI(id, status);
+        }
+        return updateGuestStatus(id, status);
+      }
 
-      renderColumn('col-TODO', todo);
-      renderColumn('col-IN_PROGRESS', progress);
-      renderColumn('col-DONE', done);
-    }
+      async function deleteTask(id) {
+        if (runtimeMode === "remote") {
+          return deleteTaskAPI(id);
+        }
+        return deleteGuestTask(id);
+      }
 
-    function renderColumn(colId, tasks) {
-      const col = document.getElementById(colId);
-      if (tasks.length === 0) {
-        col.innerHTML = `<div class="flex flex-col items-center justify-center py-12 text-base-content/20">
+      // --- Rendering ---
+
+      function render() {
+        document.getElementById("loading-state").classList.add("hidden");
+
+        const todo = allTasks.filter((t) => t.status === "TODO");
+        const progress = allTasks.filter((t) => t.status === "IN_PROGRESS");
+        const done = allTasks.filter((t) => t.status === "DONE");
+
+        document.getElementById("stat-total").textContent = allTasks.length;
+        document.getElementById("stat-todo").textContent = todo.length;
+        document.getElementById("stat-progress").textContent = progress.length;
+        document.getElementById("stat-done").textContent = done.length;
+        document.getElementById("count-todo").textContent = todo.length;
+        document.getElementById("count-progress").textContent = progress.length;
+        document.getElementById("count-done").textContent = done.length;
+
+        if (allTasks.length === 0) {
+          document.getElementById("kanban-board").style.display = "none";
+          document.getElementById("empty-state").style.display = "flex";
+          return;
+        }
+
+        document.getElementById("kanban-board").style.display = "grid";
+        document.getElementById("empty-state").style.display = "none";
+
+        renderColumn("col-TODO", todo);
+        renderColumn("col-IN_PROGRESS", progress);
+        renderColumn("col-DONE", done);
+      }
+
+      function renderColumn(colId, tasks) {
+        const col = document.getElementById(colId);
+        if (tasks.length === 0) {
+          col.innerHTML = `<div class="flex flex-col items-center justify-center py-12 text-base-content/20">
           <i class="fa-solid fa-arrow-down text-lg mb-1"></i>
           <span class="text-[11px] font-semibold tracking-wide uppercase">Drop here</span>
         </div>`;
-        return;
+          return;
+        }
+        col.innerHTML = tasks.map((t) => renderCard(t)).join("");
       }
-      col.innerHTML = tasks.map(t => renderCard(t)).join('');
-    }
 
-    function renderCard(t) {
-      const isDone = t.status === 'DONE';
-      return `
+      function renderCard(t) {
+        const isDone = t.status === "DONE";
+        return `
         <div class="task-card bg-base-100 border border-base-content/10 rounded-xl shadow-sm mb-0" draggable="true"
              data-id="${t.id}"
              ondragstart="handleDragStart(event)" ondragend="handleDragEnd(event)">
           <div class="p-4 flex flex-col gap-1.5">
             <div class="flex items-start justify-between gap-2">
-              <h3 class="font-bold text-[15px] leading-snug flex-1 cursor-pointer text-base-content ${isDone ? 'line-through opacity-30' : ''}"
+              <h3 class="font-bold text-[15px] leading-snug flex-1 cursor-pointer text-base-content ${isDone ? "line-through opacity-30" : ""}"
                   onclick="viewTask(${t.id})">${esc(t.title)}</h3>
               <div class="actions flex gap-0.5 shrink-0 -mt-1">
                 <button class="btn btn-ghost btn-xs btn-square" onclick="openEditModal(${t.id})" title="Edit">
@@ -720,223 +1255,240 @@
                 </button>
               </div>
             </div>
-            ${t.description ? `<p class="project-card-desc text-xs leading-relaxed text-base-content/60 line-clamp-2 ${isDone ? 'line-through opacity-50' : ''}">${esc(t.description)}</p>` : ''}
+            ${t.description ? `<p class="project-card-desc text-xs leading-relaxed text-base-content/60 line-clamp-2 ${isDone ? "line-through opacity-50" : ""}">${esc(t.description)}</p>` : ""}
             <div class="mt-2 pt-2 border-t border-base-content/5 flex items-center justify-between">
               <span class="text-[10px] font-medium tracking-wide text-base-content/40 uppercase">${timeAgo(t.createdAt)}</span>
             </div>
           </div>
         </div>`;
-    }
-
-    // --- Drag and Drop ---
-
-    function handleDragStart(e) {
-      draggedId = parseInt(e.target.closest('.task-card').dataset.id);
-      e.target.closest('.task-card').classList.add('dragging');
-      e.dataTransfer.effectAllowed = 'move';
-      e.dataTransfer.setData('text/plain', draggedId);
-    }
-
-    function handleDragEnd(e) {
-      e.target.closest('.task-card')?.classList.remove('dragging');
-      document.querySelectorAll('.kanban-col').forEach(c => c.classList.remove('drag-over'));
-      draggedId = null;
-    }
-
-    function handleDragOver(e) {
-      e.preventDefault();
-      e.dataTransfer.dropEffect = 'move';
-      e.currentTarget.classList.add('drag-over');
-    }
-
-    function handleDragLeave(e) {
-      if (!e.currentTarget.contains(e.relatedTarget)) {
-        e.currentTarget.classList.remove('drag-over');
       }
-    }
 
-    async function handleDrop(e) {
-      e.preventDefault();
-      const col = e.currentTarget;
-      col.classList.remove('drag-over');
-      const newStatus = col.dataset.status;
-      const id = parseInt(e.dataTransfer.getData('text/plain'));
+      // --- Drag and Drop ---
 
-      const task = allTasks.find(t => t.id === id);
-      if (!task || task.status === newStatus) return;
-
-      task.status = newStatus;
-      render();
-
-      try {
-        await updateTaskStatus(id, newStatus);
-      } catch {
-        await fetchAllTasks();
+      function handleDragStart(e) {
+        draggedId = parseInt(e.target.closest(".task-card").dataset.id);
+        e.target.closest(".task-card").classList.add("dragging");
+        e.dataTransfer.effectAllowed = "move";
+        e.dataTransfer.setData("text/plain", draggedId);
       }
-    }
 
-    // --- View Task ---
-
-    function viewTask(id) {
-      const t = allTasks.find(t => t.id === id);
-      if (!t) return;
-
-      const badges = {
-        TODO: '<span class="px-2 py-0.5 text-[10px] font-bold tracking-widest uppercase rounded bg-base-content/10 text-base-content/60 border border-base-content/10">To Do</span>',
-        IN_PROGRESS: '<span class="px-2 py-0.5 text-[10px] font-bold tracking-widest uppercase rounded bg-base-content/20 text-base-content/80 border border-base-content/20">In Progress</span>',
-        DONE: '<span class="px-2 py-0.5 text-[10px] font-bold tracking-widest uppercase rounded bg-base-content/30 text-base-content/90 border border-base-content/30">Done</span>'
-      };
-
-      document.getElementById('view-badge').innerHTML = badges[t.status];
-      document.getElementById('view-title').textContent = t.title;
-      document.getElementById('view-desc').textContent = t.description || 'No description provided.';
-      document.getElementById('view-created').textContent = formatDate(t.createdAt);
-      document.getElementById('view-updated').textContent = formatDate(t.updatedAt);
-      document.getElementById('view-edit-btn').onclick = () => {
-        document.getElementById('view-modal').close();
-        openEditModal(id);
-      };
-      document.getElementById('view-modal').showModal();
-    }
-
-    // --- Modals ---
-
-    function openCreateModal() {
-      document.getElementById('modal-title').textContent = 'New Task';
-      document.getElementById('modal-subtitle').textContent = 'Add something to your board';
-      document.getElementById('submit-btn').innerHTML = '<i class="fa-solid fa-plus text-xs"></i> Create';
-      document.getElementById('edit-id').value = '';
-      document.getElementById('task-title').value = '';
-      document.getElementById('task-desc').value = '';
-      document.getElementById('char-count').textContent = '0 / 500';
-      hideModalError();
-      document.getElementById('task-modal').showModal();
-      document.getElementById('task-title').focus();
-    }
-
-    function openEditModal(id) {
-      const t = allTasks.find(t => t.id === id);
-      if (!t) return;
-      document.getElementById('modal-title').textContent = 'Edit Task';
-      document.getElementById('modal-subtitle').textContent = 'Update the details';
-      document.getElementById('submit-btn').innerHTML = '<i class="fa-solid fa-check text-xs"></i> Save';
-      document.getElementById('edit-id').value = id;
-      document.getElementById('task-title').value = t.title;
-      document.getElementById('task-desc').value = t.description || '';
-      document.getElementById('char-count').textContent = `${(t.description || '').length} / 500`;
-      hideModalError();
-      document.getElementById('task-modal').showModal();
-      document.getElementById('task-title').focus();
-    }
-
-    function closeModal() { document.getElementById('task-modal').close(); }
-
-    function openDeleteModal(id) {
-      deleteTargetId = id;
-      document.getElementById('delete-modal').showModal();
-    }
-
-    async function confirmDelete() {
-      document.getElementById('delete-modal').close();
-      if (deleteTargetId === null) return;
-      const id = deleteTargetId;
-      deleteTargetId = null;
-
-      allTasks = allTasks.filter(t => t.id !== id);
-      render();
-
-      try {
-        await deleteTask(id);
-      } catch {
-        await fetchAllTasks();
+      function handleDragEnd(e) {
+        e.target.closest(".task-card")?.classList.remove("dragging");
+        document
+          .querySelectorAll(".kanban-col")
+          .forEach((c) => c.classList.remove("drag-over"));
+        draggedId = null;
       }
-    }
 
-    async function handleSubmit(e) {
-      e.preventDefault();
-      const id = document.getElementById('edit-id').value;
-      const title = document.getElementById('task-title').value.trim();
-      const desc = document.getElementById('task-desc').value.trim();
-      hideModalError();
+      function handleDragOver(e) {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = "move";
+        e.currentTarget.classList.add("drag-over");
+      }
 
-      try {
-        if (id) {
-          await updateTask(id, title, desc);
-        } else {
-          await createTask(title, desc);
+      function handleDragLeave(e) {
+        if (!e.currentTarget.contains(e.relatedTarget)) {
+          e.currentTarget.classList.remove("drag-over");
         }
-        closeModal();
-        await fetchAllTasks();
-      } catch (err) {
-        showModalError(err.message);
       }
-    }
 
-    function showModalError(msg) {
-      document.getElementById('modal-error').classList.remove('hidden');
-      document.getElementById('modal-error-text').textContent = msg;
-    }
-    function hideModalError() {
-      document.getElementById('modal-error').classList.add('hidden');
-    }
+      async function handleDrop(e) {
+        e.preventDefault();
+        const col = e.currentTarget;
+        col.classList.remove("drag-over");
+        const newStatus = col.dataset.status;
+        const id = parseInt(e.dataTransfer.getData("text/plain"));
 
-    // --- Utils ---
+        const task = allTasks.find((t) => t.id === id);
+        if (!task || task.status === newStatus) return;
 
-    function esc(str) {
-      const d = document.createElement('div');
-      d.textContent = str;
-      return d.innerHTML;
-    }
+        task.status = newStatus;
+        render();
 
-    function timeAgo(dateStr) {
-      if (!dateStr) return '';
-      const diff = Math.floor((Date.now() - new Date(dateStr)) / 1000);
-      if (diff < 60) return 'just now';
-      if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
-      if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
-      if (diff < 604800) return `${Math.floor(diff / 86400)}d ago`;
-      return new Date(dateStr).toLocaleDateString();
-    }
-
-    function formatDate(dateStr) {
-      if (!dateStr) return '\u2014';
-      return new Date(dateStr).toLocaleString();
-    }
-
-    document.getElementById('task-desc').addEventListener('input', function() {
-      document.getElementById('char-count').textContent = `${this.value.length} / 500`;
-    });
-
-    async function syncRuntimeMode(status) {
-      const authed = status?.authenticated === true;
-      runtimeMode = authed ? 'remote' : 'guest';
-      updateModeUI(status || { role: 'guest' });
-
-      if (runtimeMode === 'remote') {
-        await migrateGuestTasksToRemote();
+        try {
+          await updateTaskStatus(id, newStatus);
+        } catch {
+          await fetchAllTasks();
+        }
       }
-      await fetchAllTasks();
-    }
 
-    function initAuthBridge() {
-      const auth = window.AUTH;
-      if (auth && typeof auth.onReady === 'function') {
-        auth.onReady((payload) => {
-          const status = payload?.status || payload || auth.status || null;
-          syncRuntimeMode(status);
+      // --- View Task ---
+
+      function viewTask(id) {
+        const t = allTasks.find((t) => t.id === id);
+        if (!t) return;
+
+        const badges = {
+          TODO: '<span class="px-2 py-0.5 text-[10px] font-bold tracking-widest uppercase rounded bg-base-content/10 text-base-content/60 border border-base-content/10">To Do</span>',
+          IN_PROGRESS:
+            '<span class="px-2 py-0.5 text-[10px] font-bold tracking-widest uppercase rounded bg-base-content/20 text-base-content/80 border border-base-content/20">In Progress</span>',
+          DONE: '<span class="px-2 py-0.5 text-[10px] font-bold tracking-widest uppercase rounded bg-base-content/30 text-base-content/90 border border-base-content/30">Done</span>',
+        };
+
+        document.getElementById("view-badge").innerHTML = badges[t.status];
+        document.getElementById("view-title").textContent = t.title;
+        document.getElementById("view-desc").textContent =
+          t.description || "No description provided.";
+        document.getElementById("view-created").textContent = formatDate(
+          t.createdAt,
+        );
+        document.getElementById("view-updated").textContent = formatDate(
+          t.updatedAt,
+        );
+        document.getElementById("view-edit-btn").onclick = () => {
+          document.getElementById("view-modal").close();
+          openEditModal(id);
+        };
+        document.getElementById("view-modal").showModal();
+      }
+
+      // --- Modals ---
+
+      function openCreateModal() {
+        document.getElementById("modal-title").textContent = "New Task";
+        document.getElementById("modal-subtitle").textContent =
+          "Add something to your board";
+        document.getElementById("submit-btn").innerHTML =
+          '<i class="fa-solid fa-plus text-xs"></i> Create';
+        document.getElementById("edit-id").value = "";
+        document.getElementById("task-title").value = "";
+        document.getElementById("task-desc").value = "";
+        document.getElementById("char-count").textContent = "0 / 500";
+        hideModalError();
+        document.getElementById("task-modal").showModal();
+        document.getElementById("task-title").focus();
+      }
+
+      function openEditModal(id) {
+        const t = allTasks.find((t) => t.id === id);
+        if (!t) return;
+        document.getElementById("modal-title").textContent = "Edit Task";
+        document.getElementById("modal-subtitle").textContent =
+          "Update the details";
+        document.getElementById("submit-btn").innerHTML =
+          '<i class="fa-solid fa-check text-xs"></i> Save';
+        document.getElementById("edit-id").value = id;
+        document.getElementById("task-title").value = t.title;
+        document.getElementById("task-desc").value = t.description || "";
+        document.getElementById("char-count").textContent =
+          `${(t.description || "").length} / 500`;
+        hideModalError();
+        document.getElementById("task-modal").showModal();
+        document.getElementById("task-title").focus();
+      }
+
+      function closeModal() {
+        document.getElementById("task-modal").close();
+      }
+
+      function openDeleteModal(id) {
+        deleteTargetId = id;
+        document.getElementById("delete-modal").showModal();
+      }
+
+      async function confirmDelete() {
+        document.getElementById("delete-modal").close();
+        if (deleteTargetId === null) return;
+        const id = deleteTargetId;
+        deleteTargetId = null;
+
+        allTasks = allTasks.filter((t) => t.id !== id);
+        render();
+
+        try {
+          await deleteTask(id);
+        } catch {
+          await fetchAllTasks();
+        }
+      }
+
+      async function handleSubmit(e) {
+        e.preventDefault();
+        const id = document.getElementById("edit-id").value;
+        const title = document.getElementById("task-title").value.trim();
+        const desc = document.getElementById("task-desc").value.trim();
+        hideModalError();
+
+        try {
+          if (id) {
+            await updateTask(id, title, desc);
+          } else {
+            await createTask(title, desc);
+          }
+          closeModal();
+          await fetchAllTasks();
+        } catch (err) {
+          showModalError(err.message);
+        }
+      }
+
+      function showModalError(msg) {
+        document.getElementById("modal-error").classList.remove("hidden");
+        document.getElementById("modal-error-text").textContent = msg;
+      }
+      function hideModalError() {
+        document.getElementById("modal-error").classList.add("hidden");
+      }
+
+      // --- Utils ---
+
+      function esc(str) {
+        const d = document.createElement("div");
+        d.textContent = str;
+        return d.innerHTML;
+      }
+
+      function timeAgo(dateStr) {
+        if (!dateStr) return "";
+        const diff = Math.floor((Date.now() - new Date(dateStr)) / 1000);
+        if (diff < 60) return "just now";
+        if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+        if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+        if (diff < 604800) return `${Math.floor(diff / 86400)}d ago`;
+        return new Date(dateStr).toLocaleDateString();
+      }
+
+      function formatDate(dateStr) {
+        if (!dateStr) return "\u2014";
+        return new Date(dateStr).toLocaleString();
+      }
+
+      document
+        .getElementById("task-desc")
+        .addEventListener("input", function () {
+          document.getElementById("char-count").textContent =
+            `${this.value.length} / 500`;
         });
-      } else {
-        setTimeout(() => syncRuntimeMode(null), 400);
+
+      async function syncRuntimeMode(status) {
+        const authed = status?.authenticated === true;
+        runtimeMode = authed ? "remote" : "guest";
+        updateModeUI(status || { role: "guest" });
+
+        if (runtimeMode === "remote") {
+          await migrateGuestTasksToRemote();
+        }
+        await fetchAllTasks();
       }
 
-      document.addEventListener('authChanged', (event) => {
-        syncRuntimeMode(event.detail || null);
-      });
-    }
+      function initAuthBridge() {
+        const auth = window.AUTH;
+        if (auth && typeof auth.onReady === "function") {
+          auth.onReady((payload) => {
+            const status = payload?.status || payload || auth.status || null;
+            syncRuntimeMode(status);
+          });
+        } else {
+          setTimeout(() => syncRuntimeMode(null), 400);
+        }
 
-    // --- Init ---
-    initAuthBridge();
-  </script>
+        document.addEventListener("authChanged", (event) => {
+          syncRuntimeMode(event.detail || null);
+        });
+      }
 
-</body>
+      // --- Init ---
+      initAuthBridge();
+    </script>
+  </body>
 </html>
