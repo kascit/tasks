@@ -10,10 +10,16 @@ updates:
     target-branch: "main"
     open-pull-requests-limit: 3
     rebase-strategy: "auto"
+    ignore:
+      - dependency-name: "org.springframework.boot:*"
+      - dependency-name: "org.springdoc:*"
     groups:
-      maven-dependencies:
+      other-maven-deps:
         patterns:
           - "*"
+        exclude-patterns:
+          - "org.springframework.boot:*"
+          - "org.springdoc:*"
     commit-message:
       prefix: "chore"
       include: "scope"
