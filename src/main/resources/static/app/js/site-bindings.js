@@ -63,23 +63,6 @@
         }
       }
 
-      var toggle = e.target.closest("#shell-mobile-toggle");
-      if (toggle) {
-        var panel = document.querySelector("[data-shell-mobile-panel]");
-        var drawer = document.querySelector("[data-shell-mobile-drawer]");
-        var backdrop = document.querySelector("[data-shell-mobile-backdrop]");
-        if (panel && drawer) {
-          var isOpen = !panel.classList.contains("hidden");
-          if (isOpen) {
-            panel.classList.add("hidden");
-            drawer.classList.add("-translate-x-full");
-          } else {
-            panel.classList.remove("hidden");
-            drawer.classList.remove("-translate-x-full");
-          }
-          if (backdrop) backdrop.classList.toggle("opacity-0");
-        }
-      }
     },
     false,
   );
