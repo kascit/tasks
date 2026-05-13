@@ -129,6 +129,28 @@
         }
         installFramePolicy("appendChild");
         installFramePolicy("insertBefore");
+        // Also handle dynamically created iframes (e.g., Swagger UI)
+        setInterval(function () {
+          var frames = document.querySelectorAll("iframe");
+          for (var i = 0; i < frames.length; i++) {
+            try {
+              var fw = frames[i].contentWindow;
+              if (fw && fw.trustedTypes && !fw.trustedTypes.defaultPolicy) {
+                fw.trustedTypes.createPolicy("default", {
+                  createHTML: function (s) {
+                    return s;
+                  },
+                  createScript: function (s) {
+                    return s;
+                  },
+                  createScriptURL: function (s) {
+                    return s;
+                  },
+                });
+              }
+            } catch (e) {}
+          }
+        }, 1000);
       })();
     </script>
 
