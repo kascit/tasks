@@ -1292,18 +1292,22 @@
       function handleDragOver(e) {
         e.preventDefault();
         e.dataTransfer.dropEffect = "move";
-        e.currentTarget.classList.add("drag-over");
+        const col = e.target.closest("[data-drag-column]");
+        col?.classList.add("drag-over");
       }
 
       function handleDragLeave(e) {
-        if (!e.currentTarget.contains(e.relatedTarget)) {
-          e.currentTarget.classList.remove("drag-over");
+        const col = e.target.closest("[data-drag-column]");
+        if (col && !col.contains(e.relatedTarget)) {
+          col.classList.remove("drag-over");
         }
       }
 
       async function handleDrop(e) {
         e.preventDefault();
-        const col = e.currentTarget;
+        const col = e.target.closest("[data-drag-column]");
+        if (!col) return;
+
         col.classList.remove("drag-over");
         const newStatus = col.dataset.status;
         const id = parseInt(e.dataTransfer.getData("text/plain"));
