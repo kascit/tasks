@@ -1,0 +1,8 @@
+User-agent: *
+Disallow: /swagger-ui/
+Disallow: /swagger-ui.html
+Disallow: /api-docs/
+Disallow: /actuator/
+Allow: /
+Allow: /app/
+Sitemap: https://tasks.dhanur.me/sitemap.xml
