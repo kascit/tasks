@@ -61,10 +61,12 @@ public class AuthFilter extends OncePerRequestFilter {
             charged = true;
         }
 
-        filterChain.doFilter(request, response);
-
-        if (charged && response.getStatus() >= 400) {
-            refundCredits(request, 1);
+        try {
+            filterChain.doFilter(request, response);
+        } finally {
+            if (charged && response.getStatus() >= 400) {
+                refundCredits(request, 1);
+            }
         }
     }
 
